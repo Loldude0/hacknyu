@@ -8,13 +8,29 @@ from solana.rpc.api import Client
 from solders.pubkey import Pubkey
 from spl.token.instructions import transfer_checked, TransferCheckedParams
 from solders.instruction import Instruction, AccountMeta
-
-
+from spl.token.client import Token
+from spl.token._layouts import MINT_LAYOUT
 def lamportToSol(ammount: int): 
     return ammount/1_000_000_000
 
 def solToLamport(ammount: int):
     return ammount*1_000_000_000
+
+def get_token_decimals(mint_address):
+    # Connect to Solana
+    http_client = Client("https://api.mainnet-beta.solana.com")
+    
+    # Convert address string to PublicKey if needed
+    mint_pubkey = Pubkey.from_string(mint_address)
+    
+    # Get account info
+    info = http_client.get_account_info(mint_pubkey)
+    
+    # Parse decimals from mint layout
+    decimals = MINT_LAYOUT.parse(info.value.data).decimals
+    return decimals
+
+
 
 def send_sol(sender: Keypair, receiver: Pubkey, amount_sol: int): 
     amount_lamports = solToLamport(amount_sol)
@@ -129,11 +145,11 @@ def execute_jupiter_swap(input_mint: str,output_mint: str, amount: float, wallet
 
     return signature.value
 
+def smallToReal(amount, addy):
+    return int(amount * (10**get_token_decimals(addy)))
 
 
 # Example token addresses (USDC and SOL)
 INPUT_MINT = "So11111111111111111111111111111111111111112"  
 OUTPUT_MINT = "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump"   
-AMOUNT = 50000000  # 1 USDC (6 decimals)
-
-execute_jupiter_swap(INPUT_MINT, OUTPUT_MINT, AMOUNT, sender)
+print(smallToReal(0.05, INPUT_MINT))
