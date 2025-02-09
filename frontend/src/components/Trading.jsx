@@ -10,8 +10,13 @@ import {
   Wallet,
   TrendUp,
   ChartLine,
+  ArrowsVertical,
+  ArrowsLeftRight,
+  ChartLineUp,
+  Warning,
 } from "@phosphor-icons/react";
 import { currencies } from "../data/currencies";
+import tokenMetadata from "/src/data/token_metadata.json";
 
 const CurrencySelector = ({ selected, onSelect, type }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -82,183 +87,215 @@ const CurrencySelector = ({ selected, onSelect, type }) => {
 };
 
 const Trading = () => {
-  const [sellCurrency, setSellCurrency] = useState(currencies[0]); // USD
-  const [buyCurrency, setBuyCurrency] = useState(currencies[4]); // INR
   const [amount, setAmount] = useState("");
-  const [mode, setMode] = useState("instant");
-  const [exchangeRate, setExchangeRate] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [fromToken, setFromToken] = useState("SOL");
+  const [toToken, setToToken] = useState("USDC");
+  const [slippage, setSlippage] = useState("0.5");
+  const [isLoading, setIsLoading] = useState(false);
+  const [estimatedOutput, setEstimatedOutput] = useState(null);
+  const [transactionCost, setTransactionCost] = useState(0.00001); // SOL
 
-  // Fetch exchange rate when currencies change
+  const tokens = [
+    { symbol: "SOL", name: "Solana", balance: "12.5" },
+    { symbol: "USDC", name: "USD Coin", balance: "1250.00" },
+    { symbol: "BONK", name: "Bonk", balance: "1000000" },
+    { symbol: "JUP", name: "Jupiter", balance: "500" },
+  ];
+
+  const mockPrices = {
+    SOL: 95.42,
+    USDC: 1.0,
+    BONK: 0.00001,
+    JUP: 0.85,
+  };
+
   useEffect(() => {
-    const fetchExchangeRate = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(
-          `https://api.exchangerate-api.com/v4/latest/${sellCurrency.code}`
-        );
-        const data = await response.json();
-        setExchangeRate(data.rates[buyCurrency.code]);
-      } catch (error) {
-        console.error("Failed to fetch exchange rate:", error);
-      }
-      setLoading(false);
-    };
+    if (amount && fromToken && toToken) {
+      const fromPrice = mockPrices[fromToken];
+      const toPrice = mockPrices[toToken];
+      const output = (amount * fromPrice) / toPrice;
+      setEstimatedOutput(output.toFixed(6));
+    }
+  }, [amount, fromToken, toToken]);
 
-    fetchExchangeRate();
-  }, [sellCurrency.code, buyCurrency.code]);
+  const handleSwap = () => {
+    setFromToken(toToken);
+    setToToken(fromToken);
+  };
 
-  // Calculate the converted amount
-  const convertedAmount = amount
-    ? (parseFloat(amount) * (exchangeRate || 0)).toFixed(2)
-    : "";
-
-  // Format number with commas
-  const formatNumber = (num) => {
-    return new Intl.NumberFormat().format(num);
+  const calculateTotalCost = () => {
+    return (parseFloat(amount) * mockPrices[fromToken]).toFixed(2);
   };
 
   return (
-    <div className="max-w-xl mx-auto">
-      {/* Mode Selection */}
-      <div className="flex items-center gap-2 mb-6">
-        <button
-          onClick={() => setMode("instant")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            mode === "instant"
-              ? "bg-purple-500 text-white"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          <Lightning size={18} weight="fill" />
-          Instant
-        </button>
-        <button
-          onClick={() => setMode("trigger")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            mode === "trigger"
-              ? "bg-purple-500 text-white"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          <TrendUp size={18} weight="fill" />
-          Rate Alert
-        </button>
-        <button
-          onClick={() => setMode("recurring")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            mode === "recurring"
-              ? "bg-purple-500 text-white"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          <Clock size={18} weight="fill" />
-          Recurring
-        </button>
-        <button className="ml-auto p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-          <ChartLine size={20} />
-        </button>
-        <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-          <Gear size={20} />
-        </button>
-      </div>
-
-      {/* Trading Card */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Left Column - Swap Interface */}
         <div className="space-y-6">
-          {/* Selling Section */}
-          <div>
-            <span className="text-sm text-gray-500 dark:text-gray-400 mb-2 block">
-              You Send
-            </span>
-            <div className="flex gap-4">
-              <CurrencySelector
-                selected={sellCurrency}
-                onSelect={setSellCurrency}
-                type="sell"
-              />
-              <input
-                type="text"
-                value={amount}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                    setAmount(value);
-                  }
-                }}
-                placeholder="0.00"
-                className="flex-grow text-right text-2xl font-medium bg-transparent focus:outline-none"
-              />
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">Swap Tokens</h2>
+              <div className="flex items-center space-x-2">
+                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                  <Lightning size={20} className="text-yellow-500" />
+                </button>
+                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                  <ChartLineUp size={20} className="text-blue-500" />
+                </button>
+              </div>
             </div>
-            <div className="mt-1 text-right text-sm text-gray-500">
-              Balance: {formatNumber(10000)} {sellCurrency.symbol}
-            </div>
-          </div>
 
-          {/* Swap Button */}
-          <div className="relative">
-            <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+            {/* From Token */}
+            <div className="space-y-4">
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                <div className="flex justify-between mb-2">
+                  <span className="text-sm text-gray-500">From</span>
+                  <span className="text-sm text-gray-500">
+                    Balance:{" "}
+                    {tokens.find((t) => t.symbol === fromToken)?.balance}{" "}
+                    {fromToken}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <input
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="flex-1 bg-transparent text-2xl font-medium focus:outline-none"
+                  />
+                  <select
+                    value={fromToken}
+                    onChange={(e) => setFromToken(e.target.value)}
+                    className="bg-white dark:bg-gray-800 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700"
+                  >
+                    {tokens.map((token) => (
+                      <option key={token.symbol} value={token.symbol}>
+                        {token.symbol}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="text-sm text-gray-500 mt-2">
+                  ≈ ${calculateTotalCost()} USD
+                </div>
+              </div>
+
+              {/* Swap Button */}
               <button
-                onClick={() => {
-                  const temp = sellCurrency;
-                  setSellCurrency(buyCurrency);
-                  setBuyCurrency(temp);
-                }}
-                className="p-2 rounded-full bg-purple-100 hover:bg-purple-200 dark:bg-purple-900 dark:hover:bg-purple-800 transition-colors"
+                onClick={handleSwap}
+                className="mx-auto block p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
               >
-                <ArrowsDownUp
-                  size={20}
-                  className="text-purple-500 dark:text-purple-300"
-                  weight="bold"
-                />
+                <ArrowsLeftRight size={24} />
               </button>
+
+              {/* To Token */}
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                <div className="flex justify-between mb-2">
+                  <span className="text-sm text-gray-500">To</span>
+                  <span className="text-sm text-gray-500">
+                    Balance: {tokens.find((t) => t.symbol === toToken)?.balance}{" "}
+                    {toToken}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <input
+                    type="text"
+                    value={estimatedOutput || ""}
+                    readOnly
+                    placeholder="0.00"
+                    className="flex-1 bg-transparent text-2xl font-medium focus:outline-none"
+                  />
+                  <select
+                    value={toToken}
+                    onChange={(e) => setToToken(e.target.value)}
+                    className="bg-white dark:bg-gray-800 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700"
+                  >
+                    {tokens.map((token) => (
+                      <option key={token.symbol} value={token.symbol}>
+                        {token.symbol}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
-            <div className="h-px bg-gray-100 dark:bg-gray-700" />
+
+            {/* Transaction Details */}
+            <div className="mt-6 space-y-3 text-sm">
+              <div className="flex justify-between text-gray-500">
+                <span>Rate</span>
+                <span>
+                  1 {fromToken} ={" "}
+                  {(mockPrices[fromToken] / mockPrices[toToken]).toFixed(6)}{" "}
+                  {toToken}
+                </span>
+              </div>
+              <div className="flex justify-between text-gray-500">
+                <span>Network Fee</span>
+                <span>{transactionCost} SOL</span>
+              </div>
+              <div className="flex justify-between text-gray-500">
+                <span>Slippage Tolerance</span>
+                <select
+                  value={slippage}
+                  onChange={(e) => setSlippage(e.target.value)}
+                  className="bg-transparent"
+                >
+                  <option value="0.5">0.5%</option>
+                  <option value="1">1.0%</option>
+                  <option value="2">2.0%</option>
+                </select>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsLoading(true)}
+              disabled={!amount || isLoading}
+              className="w-full mt-6 py-4 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin" />
+                  <span>Swapping...</span>
+                </div>
+              ) : (
+                "Swap Tokens"
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Right Column - Market Info */}
+        <div className="space-y-6">
+          {/* Price Chart Placeholder */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold mb-4">Price Chart</h3>
+            <div className="aspect-video bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+              <ChartLineUp size={48} className="text-gray-400" />
+            </div>
           </div>
 
-          {/* Buying Section */}
-          <div>
-            <span className="text-sm text-gray-500 dark:text-gray-400 mb-2 block">
-              You Get
-            </span>
-            <div className="flex gap-4">
-              <CurrencySelector
-                selected={buyCurrency}
-                onSelect={setBuyCurrency}
-                type="buy"
-              />
-              <input
-                type="text"
-                value={loading ? "Loading..." : convertedAmount}
-                readOnly
-                placeholder="0.00"
-                className="flex-grow text-right text-2xl font-medium bg-transparent"
-              />
-            </div>
-            <div className="mt-1 text-right text-sm text-gray-500">
-              Balance: {formatNumber(50000)} {buyCurrency.symbol}
+          {/* Market Stats */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold mb-4">Market Stats</h3>
+            <div className="space-y-4">
+              {Object.entries(mockPrices).map(([token, price]) => (
+                <div key={token} className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                      {token[0]}
+                    </div>
+                    <span>{token}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-medium">${price.toFixed(2)}</div>
+                    <div className="text-sm text-green-500">+2.5%</div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-
-          {/* Exchange Rate */}
-          <div className="py-4 border-y border-gray-100 dark:border-gray-700">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Exchange Rate</span>
-              <span>
-                1 {sellCurrency.symbol} = {loading ? "..." : exchangeRate}{" "}
-                {buyCurrency.symbol}
-              </span>
-            </div>
-          </div>
-
-          {/* Action Button */}
-          <button
-            disabled={!amount || loading}
-            className="w-full py-4 bg-purple-600 text-white rounded-lg text-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            <Wallet size={20} />
-            Connect Wallet
-          </button>
         </div>
       </div>
     </div>

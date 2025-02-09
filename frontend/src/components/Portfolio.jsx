@@ -3,11 +3,10 @@ import {
   Wallet,
   TrendUp,
   TrendDown,
-  ChartLine,
   Clock,
   ArrowRight,
-  DotsThree,
 } from "@phosphor-icons/react";
+import { Connection, PublicKey } from "@solana/web3.js";
 import {
   AreaChart,
   Area,
@@ -17,48 +16,23 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { fetchRecentTransactions } from "../utils/transactionService";
 
-// Sample data - this would come from your backend
-const samplePortfolioData = {
-  summary: {
-    totalBalance: 145.82, // in SOL
-    solPrice: 95.47, // in USD
-    totalValueUSD: 13921.47,
-    percentChange24h: 5.23,
-    percentChange7d: -2.15,
-  },
-  recentTransactions: [
-    {
-      id: 1,
-      type: "receive",
-      amount: "12.5 SOL",
-      from: "8xzt...9Kpq",
-      timestamp: "2 hours ago",
-      status: "completed",
-    },
-    {
-      id: 2,
-      type: "send",
-      amount: "5.2 SOL",
-      to: "3Nmt...2Wsx",
-      timestamp: "5 hours ago",
-      status: "completed",
-    },
-    {
-      id: 3,
-      type: "receive",
-      amount: "8.3 SOL",
-      from: "5Yxc...7Lpk",
-      timestamp: "1 day ago",
-      status: "completed",
-    },
-  ],
-};
+const SOLANA_RPC_URL =
+  "https://cold-methodical-valley.solana-mainnet.quiknode.pro/5f68d0b807c87c2f09e2990ff988acb552c709f6";
+const solanaConnection = new Connection(SOLANA_RPC_URL);
+const solanaPublicKey = "FUCK3XiQyAPrtMKxU6Mk7bht2psruHTcBb2zWCynjjLz";
 
 const Portfolio = ({ setActiveTab }) => {
+  // State variables
+  const [solBalance, setSolBalance] = useState(0);
+  const [solPrice, setSolPrice] = useState(0);
+  const [transactions, setTransactions] = useState([]);
   const [priceData, setPriceData] = useState([]);
   const [selectedTimeframe, setSelectedTimeframe] = useState("1D");
   const [isLoading, setIsLoading] = useState(true);
+  const [percentChange24h, setPercentChange24h] = useState(0);
+  const [percentChange7d, setPercentChange7d] = useState(0);
 
   const timeframes = [
     { label: "1D", days: 1 },
@@ -69,13 +43,50 @@ const Portfolio = ({ setActiveTab }) => {
   ];
 
   useEffect(() => {
+    fetchSolBalance();
+    fetchSolPrice();
+    loadRecentTransactions();
     fetchPriceData(selectedTimeframe);
   }, [selectedTimeframe]);
+
+  const fetchSolBalance = async () => {
+    try {
+      const balanceLamports = await solanaConnection.getBalance(
+        new PublicKey(solanaPublicKey)
+      );
+      setSolBalance(balanceLamports / 1e9);
+    } catch (error) {
+      console.error("Error fetching SOL balance:", error);
+    }
+  };
+
+  const fetchSolPrice = async () => {
+    try {
+      const response = await fetch(
+        "https://api.coingecko.com/api/v3/coins/solana"
+      );
+      const data = await response.json();
+      setSolPrice(data.market_data.current_price.usd);
+      setPercentChange24h(data.market_data.price_change_percentage_24h);
+      setPercentChange7d(data.market_data.price_change_percentage_7d);
+    } catch (error) {
+      console.error("Error fetching SOL price:", error);
+    }
+  };
+
+  const loadRecentTransactions = async () => {
+    try {
+      const transactions = await fetchRecentTransactions(solanaPublicKey);
+      setTransactions(transactions);
+    } catch (error) {
+      console.error("Error loading transactions:", error);
+      setTransactions([]); // Set empty array on error
+    }
+  };
 
   const fetchPriceData = async (timeframe) => {
     setIsLoading(true);
     try {
-      // This is a sample API endpoint - replace with your actual data source
       const response = await fetch(
         `https://api.coingecko.com/api/v3/coins/solana/market_chart?vs_currency=usd&days=${
           timeframes.find((t) => t.label === timeframe).days
@@ -83,7 +94,6 @@ const Portfolio = ({ setActiveTab }) => {
       );
       const data = await response.json();
 
-      // Transform the data for the chart
       const formattedData = data.prices.map(([timestamp, price]) => ({
         timestamp: new Date(timestamp).toLocaleDateString(),
         price: price,
@@ -92,7 +102,7 @@ const Portfolio = ({ setActiveTab }) => {
       setPriceData(formattedData);
     } catch (error) {
       console.error("Error fetching price data:", error);
-      // Use sample data as fallback
+      // Fallback to generated data if API fails
       setPriceData(generateSamplePriceData());
     } finally {
       setIsLoading(false);
@@ -100,9 +110,8 @@ const Portfolio = ({ setActiveTab }) => {
   };
 
   const generateSamplePriceData = () => {
-    // Generate sample data if API fails
     const data = [];
-    const basePrice = 95;
+    const basePrice = solPrice || 95;
     for (let i = 0; i < 30; i++) {
       data.push({
         timestamp: new Date(
@@ -126,10 +135,6 @@ const Portfolio = ({ setActiveTab }) => {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(num);
-  };
-
-  const handleViewAllTransactions = () => {
-    setActiveTab("history");
   };
 
   const CustomTooltip = ({ active, payload, label }) => {
@@ -168,23 +173,39 @@ const Portfolio = ({ setActiveTab }) => {
             <span className="text-sm text-gray-500">Total Balance</span>
             <div className="mt-2 space-y-1">
               <h3 className="text-3xl font-bold">
-                {formatNumber(samplePortfolioData.summary.totalBalance)} SOL
+                {formatNumber(solBalance)} SOL
               </h3>
               <p className="text-lg text-gray-500">
-                {formatCurrency(samplePortfolioData.summary.totalValueUSD)}
+                {formatCurrency(solBalance * solPrice)}
               </p>
             </div>
             <div className="flex items-center space-x-4 mt-4">
               <div className="flex items-center space-x-1">
-                <TrendUp size={16} className="text-green-500" />
-                <span className="text-sm text-green-500">
-                  {samplePortfolioData.summary.percentChange24h}% (24h)
+                {percentChange24h >= 0 ? (
+                  <TrendUp size={16} className="text-green-500" />
+                ) : (
+                  <TrendDown size={16} className="text-red-500" />
+                )}
+                <span
+                  className={`text-sm ${
+                    percentChange24h >= 0 ? "text-green-500" : "text-red-500"
+                  }`}
+                >
+                  {percentChange24h?.toFixed(2)}% (24h)
                 </span>
               </div>
               <div className="flex items-center space-x-1">
-                <TrendDown size={16} className="text-red-500" />
-                <span className="text-sm text-red-500">
-                  {samplePortfolioData.summary.percentChange7d}% (7d)
+                {percentChange7d >= 0 ? (
+                  <TrendUp size={16} className="text-green-500" />
+                ) : (
+                  <TrendDown size={16} className="text-red-500" />
+                )}
+                <span
+                  className={`text-sm ${
+                    percentChange7d >= 0 ? "text-green-500" : "text-red-500"
+                  }`}
+                >
+                  {percentChange7d?.toFixed(2)}% (7d)
                 </span>
               </div>
             </div>
@@ -272,7 +293,7 @@ const Portfolio = ({ setActiveTab }) => {
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <h3 className="text-lg font-semibold">Recent Transactions</h3>
           <button
-            onClick={handleViewAllTransactions}
+            onClick={() => setActiveTab("history")}
             className="text-sm text-purple-500 hover:text-purple-600 font-medium flex items-center space-x-1"
           >
             <span>View All</span>
@@ -280,7 +301,7 @@ const Portfolio = ({ setActiveTab }) => {
           </button>
         </div>
         <div className="divide-y divide-gray-200 dark:divide-gray-700">
-          {samplePortfolioData.recentTransactions.map((tx) => (
+          {transactions.map((tx) => (
             <div
               key={tx.id}
               className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50"
@@ -305,18 +326,13 @@ const Portfolio = ({ setActiveTab }) => {
                       {tx.type === "receive" ? "Received" : "Sent"} {tx.amount}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {tx.type === "receive" ? "From" : "To"}{" "}
-                      {tx.type === "receive" ? tx.from : tx.to}
+                      {tx.type === "receive" ? "From" : "To"} {tx.to}
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="flex items-center space-x-2">
-                    <Clock size={16} className="text-gray-400" />
-                    <span className="text-sm text-gray-500">
-                      {tx.timestamp}
-                    </span>
-                  </div>
+                <div className="text-right flex items-center space-x-2">
+                  <Clock size={16} className="text-gray-400" />
+                  <span className="text-sm text-gray-500">{tx.timestamp}</span>
                 </div>
               </div>
             </div>

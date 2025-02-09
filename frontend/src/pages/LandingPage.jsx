@@ -12,9 +12,19 @@ import {
   LinkedinLogo,
   GithubLogo,
 } from "@phosphor-icons/react";
+import WalletConnect from "../components/WalletConnect";
 
 const NavBar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isWalletConnected, setIsWalletConnected] = useState(false);
+
+  const handleWalletAddress = (address) => {
+    console.log("Wallet connected:", address);
+    setIsWalletConnected(true);
+    // You can add additional logic here, like redirecting to dashboard
+    // For example:
+    // window.location.href = '/dashboard';
+  };
 
   return (
     <nav className="nav-container">
@@ -41,10 +51,10 @@ const NavBar = () => {
           </div>
         </div>
 
-        {/* Login Button */}
-        <RouterLink to="/dashboard" className="hidden md:block nav-button">
-          Login
-        </RouterLink>
+        {/* Wallet Connect Button */}
+        <div className="hidden md:block">
+          <WalletConnect onAddressReceived={handleWalletAddress} />
+        </div>
 
         {/* Mobile menu button */}
         <button
@@ -75,9 +85,7 @@ const NavBar = () => {
             <button className="nav-link text-sm md:text-base font-medium tracking-wide text-center">
               FAQ
             </button>
-            <RouterLink to="/dashboard" className="nav-button text-center">
-              Login
-            </RouterLink>
+            <WalletConnect onAddressReceived={handleWalletAddress} />
           </div>
         </div>
       )}
@@ -87,14 +95,17 @@ const NavBar = () => {
 
 const Feature = ({ icon: Icon, title, description }) => {
   return (
-    <div className="feature-card">
-      <div className="mb-4 p-3 rounded-full bg-purple-100 w-fit">
-        <Icon size={24} className="text-purple-500" weight="duotone" />
+    <div className="feature-card relative group">
+      <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-violet-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <div className="relative flex flex-col h-full p-6 bg-white/80 backdrop-blur-sm rounded-xl border border-purple-100 hover:border-purple-300 transition-colors duration-300">
+        <div className="mb-4 p-3 rounded-full bg-purple-100 w-fit">
+          <Icon size={24} className="text-purple-500" weight="duotone" />
+        </div>
+        <h3 className="text-lg font-semibold text-neutral-800 mb-2">{title}</h3>
+        <p className="text-neutral-600 text-sm leading-relaxed">
+          {description}
+        </p>
       </div>
-      <h3 className="text-lg font-semibold text-neutral-800">{title}</h3>
-      <p className="mt-3 text-neutral-600 text-sm leading-relaxed">
-        {description}
-      </p>
     </div>
   );
 };
@@ -309,12 +320,15 @@ const LandingPage = () => {
             Get Started
           </RouterLink>
 
-          <div className="hero-image">
-            <img
-              src="/src/assets/test.png"
-              alt="Dashboard Preview"
-              className="w-full h-full object-contain"
-            />
+          <div className="hero-image relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-violet-600 rounded-xl opacity-70 blur-sm group-hover:opacity-100 transition-all duration-300" />
+            <div className="relative rounded-xl overflow-hidden border border-purple-200">
+              <img
+                src="/src/assets/test.png"
+                alt="Dashboard Preview"
+                className="w-full h-full object-contain transform group-hover:scale-[1.01] transition-transform duration-300"
+              />
+            </div>
           </div>
         </div>
       </section>
