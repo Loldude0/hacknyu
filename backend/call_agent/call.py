@@ -9,8 +9,9 @@ from fastapi.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
 import sys
 from dotenv import load_dotenv
-from hacknyu.backend.call_agent.get_info import get_relevant_info
-from hacknyu.backend.call_agent.get_price import get_coin_price, get_top_5_trending
+from get_info import get_relevant_info
+from get_price import get_coin_price, get_top_5_trending
+from coin_methods import send_sol_to, swap_coin, return_Balance
 load_dotenv()
 
 
@@ -243,6 +244,87 @@ async def handle_media_stream(websocket: WebSocket):
                                 await openai_ws.send(json.dumps(conversation_item)) 
                                 await openai_ws.send(json.dumps({"type": "response.create"}))
                                 print("added trending info SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS")   
+                        if (response.get('type') == 'response.done' and 
+                            response.get("response", {}).get("output") and  # Check if output exists and is not empty
+                            len(response["response"]["output"]) > 1 and     # Check if output has at least one element
+                            response["response"]["output"][1].get("type") == "function_call"):
+                            if response["response"]["output"][1]["name"]=="get_balance" :
+                                # and "arguments" in response["response"]["output"][1]:
+                                # arguments = json.loads(response["response"]["output"][1]["arguments"])
+                                # print(arguments)
+                                # topic=arguments["coin"]
+                                trend = str(return_Balance())
+                                conversation_item = {
+                                        "type": "conversation.item.create",
+                                        "item": {
+                                        "type": "message",
+                                        "role": "user",
+                                        "content": [
+                                            {
+                                                "type": "input_text",
+                                                "text": f"This is the user's solana balance: {trend} "
+                                            }
+                                        ]
+                                    }
+                                }
+                                await openai_ws.send(json.dumps(conversation_item)) 
+                                await openai_ws.send(json.dumps({"type": "response.create"}))
+                                print("added balance info SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS") 
+                        if (response.get('type') == 'response.done' and 
+                            response.get("response", {}).get("output") and  # Check if output exists and is not empty
+                            len(response["response"]["output"]) > 1 and     # Check if output has at least one element
+                            response["response"]["output"][1].get("type") == "function_call"):
+                            if response["response"]["output"][1]["name"]=="send_solana"\
+                                and "arguments" in response["response"]["output"][1]:
+                                arguments = json.loads(response["response"]["output"][1]["arguments"])
+                                print(arguments)
+                                reciever=arguments["reciever"]
+                                amount=arguments["amount"]
+                                trend = str(send_sol_to(reciever, amount))
+                                conversation_item = {
+                                        "type": "conversation.item.create",
+                                        "item": {
+                                        "type": "message",
+                                        "role": "user",
+                                        "content": [
+                                            {
+                                                "type": "input_text",
+                                                "text": f"This is the result of the transaction (Inform the user if there was an error): {trend}. Do not call any other functions like get_information from here "
+                                            }
+                                        ]
+                                    }
+                                }
+                                await openai_ws.send(json.dumps(conversation_item)) 
+                                await openai_ws.send(json.dumps({"type": "response.create"}))
+                                print("completed transaction SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS") 
+                        if (response.get('type') == 'response.done' and 
+                            response.get("response", {}).get("output") and  # Check if output exists and is not empty
+                            len(response["response"]["output"]) > 1 and     # Check if output has at least one element
+                            response["response"]["output"][1].get("type") == "function_call"):
+                            if response["response"]["output"][1]["name"]=="swap_coin"\
+                                and "arguments" in response["response"]["output"][1]:
+                                arguments = json.loads(response["response"]["output"][1]["arguments"])
+                                print(arguments)
+                                input=arguments["input"]
+                                output=arguments["output"]
+                                amount=arguments["amount"]
+                                trend = str(swap_coin(input,output, amount))
+                                conversation_item = {
+                                        "type": "conversation.item.create",
+                                        "item": {
+                                        "type": "message",
+                                        "role": "user",
+                                        "content": [
+                                            {
+                                                "type": "input_text",
+                                                "text": f"This is the result of the transaction (Inform the user if there was an error): {trend}. Do not call any other functions like get_information from here "
+                                            }
+                                        ]
+                                    }
+                                }
+                                await openai_ws.send(json.dumps(conversation_item)) 
+                                await openai_ws.send(json.dumps({"type": "response.create"}))
+                                print("swapped coin SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS") 
                         elif response['type']=='conversation.item.input_audio_transcription.completed':
                             conv_history.append(response)   
                         elif response["type"]=='response.audio_transcript.done ':
@@ -352,7 +434,7 @@ async def initialize_session(openai_ws):
        f"""You are Sona - Solana's Assistant. Your job is to help users with any queries they have and maintain a conversation with them.
              You have access to the Solana database and can provide information about Solana to the users including structure, code and anything relevant.
              You can also access data about any coin in real time!
-             Talk as energetic and friendly as possible.
+             Talk as energetic and friendly as possible while being quick.
              Before performing any function make sure you let the user know what you are doing!
             """
             )
@@ -443,6 +525,68 @@ async def initialize_session(openai_ws):
                     "type": "object",
                     "properties": {
                     },    
+                    }
+                },
+                {"type": "function",
+                    "name": "get_balance",
+                    "description": """Get information about the user's Solana balance.
+                    If the user asks about their balance, use this function to get the balance.
+                    Always let the user know that you are getting information so they can wait
+                     """,
+                    "parameters": {
+                    "type": "object",
+                    "properties": {
+                    },    
+                    }
+                }, {"type": "function",
+                    "name": "send_solana",
+                    "description": """Send Solana to another user.
+                    If the user asks to send Solana, use this function to send Solana to another user.
+                    Make sure you get the name of the reciever and the amount to send.
+                    Confirm the details before sending.
+                    Always let the user know that you are sending Solana so they can wait
+                    Amount will always be less than 0.2
+                     """,
+                    "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "reciever": {
+                            "type": "string",
+                            "description": "The name of the reciever"
+                        },
+                        "amount": {
+                            "type": "number",
+                            "description": "The amount of Solana to send"
+                        }
+                    },
+                    "required": ["reciever", "amount"]
+                    }
+                }, {"type": "function",
+                    "name": "swap_coin",
+                    "description": """Swap one coin into another.
+                    If the user asks to convert one coin into another, use this function to swap the coins.
+                    The available coins are Solana (SOL), USDC and Fartcoin(FART).
+                    Make sure you get the name of the coin to swap from, the coin to swap to and the amount to swap.
+                    Confirm the details before swapping.
+                    Always let the user know that you are swapping coins so they can wait
+                     """,
+                    "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "input": {
+                            "type": "string",
+                            "description": "The name of the coin to swap from. The available coins are SOL, USDC and FART. ONLY return abberivation and not full name"
+                        },
+                         "output": {
+                            "type": "string",
+                            "description": "The name of the coin to swap to. The available coins are SOL, USDC and FART. ONLY return abberivation and not full name"
+                        },
+                        "amount": {
+                            "type": "number",
+                            "description": "The amount of Solana to send"
+                        }
+                    },
+                    "required": ["input", "output", "amount"]
                     }
                 }
             ]

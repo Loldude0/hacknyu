@@ -6,9 +6,23 @@ import os
 import requests
 from typing import List, Dict
 from datetime import datetime
+from openai import OpenAI
+import json
 
 load_dotenv(override=True)
 api_key = os.getenv("COINGECKO_API_KEY")
+OPENAI_KEY=os.getenv("OPENAI_API_KEY")
+client=OpenAI(api_key=OPENAI_KEY)
+
+messages=[{
+             'role': 'system',
+                'content': f""""You are a crypto expert analyst whose job is to look though trending coins and news snippets 
+                to suggest trending coins and advancements to the user.
+                Make sure you properly suggest coins based on both stats and news advancements.
+
+                """
+            }]
+
 
 def get_coin_price(coin_id: str, api_key: str = "YOUR-API-KEY-HERE") -> Dict[str, Union[str, float]]:
     """
@@ -92,8 +106,27 @@ def get_top_5_trending() -> List[Dict]:
                 'price_btc': item['price_btc'],
                 'market_cap_rank': item['market_cap_rank']
             })
-        
-        return trending_coins
+        with open("../../data/news.json") as f:
+            news = json.load(f)
+
+        formatted_user_query = f"""
+
+        This are the current trending coins
+        {str(trending_coins)}
+        This are some recent news snippets
+        {str(news)}
+         """
+        messages.append(
+                {
+                    'role': 'user',
+                    'content': formatted_user_query
+                })
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+        )
+        out = response.choices[0].message.content
+        return out
     except requests.exceptions.RequestException as e:
         raise Exception(f"Error fetching trending coins: {str(e)}")
     except (KeyError, ValueError) as e:
