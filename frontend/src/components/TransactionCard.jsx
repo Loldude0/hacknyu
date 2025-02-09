@@ -49,167 +49,124 @@ const TransactionCard = ({ transaction }) => {
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
-    // You could add a toast notification here
+    // Optionally add your toast notification here
   };
 
   const openInSolscan = (hash) => {
     window.open(`https://solscan.io/tx/${hash}`, "_blank");
   };
 
-  // Format the transaction amount display
+  // Updated helper function for normalization.
+  // We use a heuristic: if the numeric value of token.amount is greater than or equal to 10^(decimals)
+  // we assume it's a raw integer and divide it; otherwise, it's already normalized.
+  const normalizeAmount = (token) => {
+    const raw = Number(token.amount);
+    const decimals = token.tokenInfo?.decimals || 1;
+    const factor = Math.pow(10, decimals);
+    if (raw >= factor) {
+      return raw / factor;
+    }
+    return raw;
+  };
+
+  // Updated display for swap transactions using normalized and aggregated amounts
   const formatTransactionDisplay = () => {
     if (!transaction) return null;
-
-    if (transaction.type === "swap" && transaction.tokenChanges) {
-      const { pre, post } = transaction.tokenChanges;
-
-      // Find tokens that decreased (source) and increased (destination) in value
-      const sourceTokens = pre.filter((preToken) => {
-        const postToken = post.find((p) => p.mint === preToken.mint);
-        return postToken && postToken.amount < preToken.amount;
-      });
-
-      const destinationTokens = post.filter((postToken) => {
-        const preToken = pre.find((p) => p.mint === postToken.mint);
-        return !preToken || postToken.amount > (preToken?.amount || 0);
-      });
-
-      // For the main display, only show first source and last destination
-      const firstSource = sourceTokens[0];
-      const lastDestination = destinationTokens[destinationTokens.length - 1];
-
+  
+    if (transaction.type === "swap" && transaction.source && transaction.destination) {
+      // Use the initial source and final destination for the main display
+      const sourceToken = transaction.source[0];
+      const destinationToken = transaction.destination[0];
+  
       return (
         <div className="flex items-center space-x-2">
-          {/* First Source Token */}
+          {/* Initial Source Token */}
           <div className="flex items-center space-x-1">
-            {firstSource && (
-              <div className="flex items-center space-x-1">
-                {firstSource.tokenInfo?.logoURI && (
-                  <img
-                    src={firstSource.tokenInfo.logoURI}
-                    alt={firstSource.tokenInfo?.symbol || "Token"}
-                    className="w-4 h-4 rounded-full"
-                  />
-                )}
-                <span className="text-sm font-medium">
-                  {Math.abs(
-                    firstSource.amount -
-                      (post.find((p) => p.mint === firstSource.mint)?.amount ||
-                        0)
-                  ).toFixed(4)}{" "}
-                  {firstSource.tokenInfo?.symbol || "Token"}
-                </span>
-              </div>
+            {sourceToken?.tokenInfo?.logoURI && (
+              <img
+                src={sourceToken.tokenInfo.logoURI}
+                alt={sourceToken.tokenInfo.symbol || "Token"}
+                className="w-4 h-4 rounded-full"
+              />
             )}
+            <span className="text-sm font-medium">
+              {sourceToken?.amount.toFixed(4)} {sourceToken?.tokenInfo?.symbol || "Token"}
+            </span>
           </div>
-
+  
           <ArrowRight size={16} className="text-gray-400" />
-
-          {/* Last Destination Token */}
+  
+          {/* Final Destination Token */}
           <div className="flex items-center space-x-1">
-            {lastDestination && (
-              <div className="flex items-center space-x-1">
-                {lastDestination.tokenInfo?.logoURI && (
-                  <img
-                    src={lastDestination.tokenInfo.logoURI}
-                    alt={lastDestination.tokenInfo?.symbol || "Token"}
-                    className="w-4 h-4 rounded-full"
-                  />
-                )}
-                <span className="text-sm font-medium">
-                  {Math.abs(
-                    lastDestination.amount -
-                      (pre.find((p) => p.mint === lastDestination.mint)
-                        ?.amount || 0)
-                  ).toFixed(4)}{" "}
-                  {lastDestination.tokenInfo?.symbol || "Token"}
-                </span>
-              </div>
+            {destinationToken?.tokenInfo?.logoURI && (
+              <img
+                src={destinationToken.tokenInfo.logoURI}
+                alt={destinationToken.tokenInfo.symbol || "Token"}
+                className="w-4 h-4 rounded-full"
+              />
             )}
+            <span className="text-sm font-medium">
+              {destinationToken?.amount.toFixed(4)} {destinationToken?.tokenInfo?.symbol || "Token"}
+            </span>
           </div>
         </div>
       );
     } else {
-      // For regular transfers
+      // For transfers or SOL transactions, show the computed primary amount string
       return <span className="text-sm font-medium">{transaction.amount}</span>;
     }
   };
 
   const renderFullTransactionChain = () => {
-    if (!transaction?.tokenChanges) return null;
-    const { pre, post } = transaction.tokenChanges;
-
-    const sourceTokens = pre.filter((preToken) => {
-      const postToken = post.find((p) => p.mint === preToken.mint);
-      return postToken && postToken.amount < preToken.amount;
-    });
-
-    const destinationTokens = post.filter((postToken) => {
-      const preToken = pre.find((p) => p.mint === postToken.mint);
-      return !preToken || postToken.amount > (preToken?.amount || 0);
-    });
-
+    if (!transaction.transactionChain?.length) return null;
+    
     return (
       <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
         <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
           Transaction Chain
         </h4>
         <div className="space-y-2">
-          {sourceTokens.map((token, index) => {
-            const nextToken =
-              destinationTokens[index] ||
-              destinationTokens[destinationTokens.length - 1];
-            return (
-              <div key={token.mint} className="flex items-center space-x-2">
-                <div className="flex items-center space-x-1">
-                  {token.tokenInfo?.logoURI && (
-                    <img
-                      src={token.tokenInfo.logoURI}
-                      alt={token.tokenInfo?.symbol || "Token"}
-                      className="w-4 h-4 rounded-full"
-                    />
-                  )}
-                  <span className="text-sm">
-                    {Math.abs(
-                      token.amount -
-                        (post.find((p) => p.mint === token.mint)?.amount || 0)
-                    ).toFixed(4)}{" "}
-                    {token.tokenInfo?.symbol || "Token"}
-                    {token.tokenInfo?.name && (
-                      <span className="text-xs text-gray-500">
-                        {" "}
-                        ({token.tokenInfo.name})
-                      </span>
+          {transaction.transactionChain.map((step, stepIndex) => (
+            <div key={stepIndex} className="flex items-center space-x-2">
+              {/* Source Tokens */}
+              <div className="flex items-center space-x-1">
+                {step.source.map((sourceToken, tokenIndex) => (
+                  <div key={`source-${stepIndex}-${tokenIndex}`} className="flex items-center space-x-1">
+                    {sourceToken.tokenInfo?.logoURI && (
+                      <img
+                        src={sourceToken.tokenInfo.logoURI}
+                        alt={sourceToken.tokenInfo?.symbol || "Token"}
+                        className="w-4 h-4 rounded-full"
+                      />
                     )}
-                  </span>
-                </div>
-                <ArrowRight size={16} className="text-gray-400" />
-                <div className="flex items-center space-x-1">
-                  {nextToken.tokenInfo?.logoURI && (
-                    <img
-                      src={nextToken.tokenInfo.logoURI}
-                      alt={nextToken.tokenInfo?.symbol || "Token"}
-                      className="w-4 h-4 rounded-full"
-                    />
-                  )}
-                  <span className="text-sm">
-                    {Math.abs(
-                      nextToken.amount -
-                        (pre.find((p) => p.mint === nextToken.mint)?.amount ||
-                          0)
-                    ).toFixed(4)}{" "}
-                    {nextToken.tokenInfo?.symbol || "Token"}
-                    {nextToken.tokenInfo?.name && (
-                      <span className="text-xs text-gray-500">
-                        {" "}
-                        ({nextToken.tokenInfo.name})
-                      </span>
-                    )}
-                  </span>
-                </div>
+                    <span className="text-sm">
+                      {sourceToken.amount.toFixed(4)} {sourceToken.tokenInfo?.symbol || "Token"}
+                    </span>
+                  </div>
+                ))}
               </div>
-            );
-          })}
+  
+              <ArrowRight size={16} className="text-gray-400" />
+  
+              {/* Destination Tokens */}
+              <div className="flex items-center space-x-1">
+                {step.destination.map((destToken, tokenIndex) => (
+                  <div key={`dest-${stepIndex}-${tokenIndex}`} className="flex items-center space-x-1">
+                    {destToken.tokenInfo?.logoURI && (
+                      <img
+                        src={destToken.tokenInfo.logoURI}
+                        alt={destToken.tokenInfo?.symbol || "Token"}
+                        className="w-4 h-4 rounded-full"
+                      />
+                    )}
+                    <span className="text-sm">
+                      {destToken.amount.toFixed(4)} {destToken.tokenInfo?.symbol || "Token"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -290,7 +247,7 @@ const TransactionCard = ({ transaction }) => {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Fee</span>
-              <span>{transaction.fee}</span>
+              <span>{transaction.fee} SOL</span>
             </div>
             {renderFullTransactionChain()}
             <button

@@ -10,382 +10,498 @@ import {
   Clock,
 } from "@phosphor-icons/react";
 import transactionData from "/src/data/transactions_20250208_222941.json";
+import tokenMetadata from "/src/data/token_metadata.json";
+import axios from "axios";
+
+// CoinGecko API base URL
+const COINGECKO_API_BASE = "/api/coingecko/";
+
+// Token mapping for CoinGecko IDs
+const COINGECKO_TOKEN_MAP = {
+  "So11111111111111111111111111111111111111112": "solana", // SOL
+  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "usd-coin", // USDC
+  "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB": "usd-coin", // USDT
+  // Add more token mappings as needed
+};
+
+// Price cache to avoid redundant API calls
+const priceCache = new Map();
+
+// Build tokenMap using local token metadata
+const tokenMap = new Map(
+  tokenMetadata.tokens.map((token) => [
+    token.address.toLowerCase(),
+    {
+      symbol: token.symbol,
+      name: token.name !== "Unknown Token" ? token.name : undefined,
+      decimals: token.decimals,
+      logoURI: token.logoURI,
+      coingeckoId: COINGECKO_TOKEN_MAP[token.address] || null,
+    },
+  ])
+);
 
 const TaxCalculator = () => {
   const [selectedYear, setSelectedYear] = useState("2024");
+  const [taxMethod, setTaxMethod] = useState("FIFO");
   const [showTransactions, setShowTransactions] = useState(false);
   const [taxData, setTaxData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [priceData, setPriceData] = useState({});
+  const [error, setError] = useState(null);
+
+  // Batch fetch historical prices for multiple dates and tokens
+  const batchFetchHistoricalPrices = async (requests) => {
+    const uniqueRequests = new Map();
+    
+    // Deduplicate requests by date and token
+    requests.forEach(({ coingeckoId, timestamp }) => {
+      const date = new Date(timestamp).toISOString().split('T')[0];
+      const key = `${coingeckoId}-${date}`;
+      
+      if (!priceCache.has(key)) {
+        uniqueRequests.set(key, { coingeckoId, date });
+      }
+    });
+
+    // Process unique requests in batches of 10
+    const batchSize = 10;
+    const uniqueRequestsArray = Array.from(uniqueRequests.values());
+    const results = new Map();
+
+    for (let i = 0; i < uniqueRequestsArray.length; i += batchSize) {
+      const batch = uniqueRequestsArray.slice(i, i + batchSize);
+      const promises = batch.map(async ({ coingeckoId, date }) => {
+        try {
+          const response = await axios.get(
+            `${COINGECKO_API_BASE}/coins/${coingeckoId}/history`,
+            {
+              params: {
+                date,
+                localization: false,
+              }
+            }
+          );
+          const price = response.data.market_data?.current_price?.usd || null;
+          const key = `${coingeckoId}-${date}`;
+          priceCache.set(key, price);
+          results.set(key, price);
+        } catch (error) {
+          console.error(`Error fetching price for ${coingeckoId} on ${date}:`, error);
+        }
+      });
+
+      await Promise.all(promises);
+      // Add a small delay between batches to respect rate limits
+      if (i + batchSize < uniqueRequestsArray.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    // Return prices for all requested combinations
+    return requests.map(({ coingeckoId, timestamp }) => {
+      const date = new Date(timestamp).toISOString().split('T')[0];
+      const key = `${coingeckoId}-${date}`;
+      return priceCache.get(key);
+    });
+  };
+
+  // Fetch current prices for all relevant tokens
+  const fetchCurrentPrices = async (tokenIds) => {
+    try {
+      const response = await axios.get(
+        `${COINGECKO_API_BASE}/simple/price`,
+        {
+          params: {
+            ids: tokenIds.join(','),
+            vs_currencies: 'usd',
+          }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching current prices:", error);
+      return {};
+    }
+  };
+
+  // Helper function to get token info
+  const getTokenInfo = (mint) => {
+    if (!mint) return null;
+    const normalizedMint = mint.toLowerCase();
+    const tokenInfo = tokenMap.get(normalizedMint);
+    if (!tokenInfo) {
+      return {
+        symbol: `${mint.slice(0, 4)}...${mint.slice(-4)}`,
+        decimals: 9,
+        logoURI: `https://api.dicebear.com/7.x/identicon/svg?seed=${mint}`,
+        coingeckoId: null,
+      };
+    }
+    return tokenInfo;
+  };
 
   useEffect(() => {
-    const calculateTaxes = () => {
+    const calculateTaxes = async () => {
       try {
         setLoading(true);
+        setError(null);
 
-        // Process transactions for tax calculations
-        let totalGains = 0;
-        let totalLosses = 0;
+        // Initialize tax tracking
+        let shortTermGains = 0;
+        let shortTermLosses = 0;
+        let longTermGains = 0;
+        let longTermLosses = 0;
         let totalFees = 0;
-        let monthlyData = Array(12)
-          .fill()
-          .map(() => ({ gains: 0, losses: 0 }));
+        
+        // Holdings tracker for FIFO/LIFO
+        const holdings = {};
+        const transactions = [];
 
-        const processedTransactions = transactionData
-          .map((tx) => {
-            // Skip failed transactions
-            if (tx.meta.err !== null) {
-              return null;
+        // Process transactions chronologically
+        const sortedTransactions = [...transactionData].sort((a, b) => a.blockTime - b.blockTime);
+
+        // Collect all price requests first
+        const priceRequests = [];
+        const relevantTransactions = [];
+
+        for (const tx of sortedTransactions) {
+          if (tx.meta.err !== null) continue;
+
+          const timestamp = tx.blockTime * 1000;
+          const date = new Date(timestamp);
+          
+          if (date.getFullYear().toString() !== selectedYear) continue;
+
+          const fee = tx.meta.fee / 1e9;
+          totalFees += fee;
+
+          const preTokenBalances = tx.meta.preTokenBalances || [];
+          const postTokenBalances = tx.meta.postTokenBalances || [];
+
+          for (const [pre, post] of zip(preTokenBalances, postTokenBalances)) {
+            if (!pre || !post) continue;
+
+            const tokenInfo = getTokenInfo(pre.mint);
+            if (!tokenInfo || !tokenInfo.coingeckoId) continue;
+
+            const preAmount = Number(pre.uiTokenAmount.amount) / Math.pow(10, tokenInfo.decimals);
+            const postAmount = Number(post.uiTokenAmount.amount) / Math.pow(10, tokenInfo.decimals);
+            const difference = postAmount - preAmount;
+
+            if (difference === 0) continue;
+
+            priceRequests.push({
+              coingeckoId: tokenInfo.coingeckoId,
+              timestamp: timestamp
+            });
+
+            relevantTransactions.push({
+              tx,
+              tokenInfo,
+              difference,
+              timestamp,
+              pre,
+              post
+            });
+          }
+        }
+
+        // Batch fetch all required prices
+        const prices = await batchFetchHistoricalPrices(priceRequests);
+        let priceIndex = 0;
+
+        // Process transactions with cached prices
+        for (const { tx, tokenInfo, difference, timestamp, pre } of relevantTransactions) {
+          const price = prices[priceIndex++];
+          if (!price) continue;
+
+          if (difference > 0) {
+            // Buy/Receive tokens
+            if (!holdings[pre.mint]) holdings[pre.mint] = [];
+            holdings[pre.mint].push({
+              amount: difference,
+              price: price,
+              timestamp: timestamp,
+            });
+          } else {
+            // Sell/Send tokens
+            const saleAmount = Math.abs(difference);
+            let remainingAmount = saleAmount;
+            let totalCostBasis = 0;
+            
+            const lots = taxMethod === 'FIFO' 
+              ? holdings[pre.mint] 
+              : [...holdings[pre.mint]].reverse();
+
+            while (remainingAmount > 0 && lots.length > 0) {
+              const lot = lots[0];
+              const amountFromLot = Math.min(remainingAmount, lot.amount);
+              
+              const gainLoss = (price - lot.price) * amountFromLot;
+              const isLongTermHold = isLongTerm(lot.timestamp, timestamp);
+
+              if (gainLoss > 0) {
+                if (isLongTermHold) longTermGains += gainLoss;
+                else shortTermGains += gainLoss;
+              } else {
+                if (isLongTermHold) longTermLosses += Math.abs(gainLoss);
+                else shortTermLosses += Math.abs(gainLoss);
+              }
+
+              totalCostBasis += lot.price * amountFromLot;
+              remainingAmount -= amountFromLot;
+              lot.amount -= amountFromLot;
+
+              if (lot.amount === 0) lots.shift();
             }
 
-            const timestamp = tx.blockTime * 1000; // Convert to milliseconds
-            const date = new Date(timestamp);
-            const month = date.getMonth();
+            transactions.push({
+              timestamp,
+              type: "SELL",
+              symbol: tokenInfo.symbol,
+              amount: saleAmount,
+              price: price,
+              costBasis: totalCostBasis,
+              gainLoss: price * saleAmount - totalCostBasis,
+            });
+          }
+        }
 
-            // Get token transfers if any
-            const preTokenBalances = tx.meta.preTokenBalances || [];
-            const postTokenBalances = tx.meta.postTokenBalances || [];
-
-            // Calculate SOL changes
-            const solChange =
-              (tx.meta.postBalances[0] - tx.meta.preBalances[0]) / 1e9;
-            const fee = tx.meta.fee / 1e9;
-
-            let gainLoss = 0;
-            let txType = "unknown";
-            let amount = 0;
-
-            // Check if this is a token transfer
-            if (preTokenBalances.length > 0 || postTokenBalances.length > 0) {
-              // Token transaction
-              const preAmount =
-                preTokenBalances[0]?.uiTokenAmount.uiAmount || 0;
-              const postAmount =
-                postTokenBalances[0]?.uiTokenAmount.uiAmount || 0;
-              amount = Math.abs(postAmount - preAmount);
-              gainLoss = postAmount - preAmount;
-              txType = postAmount > preAmount ? "token_receive" : "token_send";
-            } else {
-              // SOL transaction
-              amount = Math.abs(solChange);
-              gainLoss = solChange - fee; // Subtract fee from gain/loss calculation
-              txType = solChange > 0 ? "sol_receive" : "sol_send";
-            }
-
-            // Update monthly data
-            if (gainLoss > 0) {
-              monthlyData[month].gains += gainLoss;
-              totalGains += gainLoss;
-            } else if (gainLoss < 0) {
-              monthlyData[month].losses += Math.abs(gainLoss);
-              totalLosses += Math.abs(gainLoss);
-            }
-
-            totalFees += fee;
-
-            return {
-              txHash: tx.transaction.signatures[0],
-              timestamp: date.toISOString(),
-              type: txType,
-              amount: amount,
-              fee: fee,
-              gainLoss: gainLoss,
-              // Include token information if present
-              tokenInfo:
-                preTokenBalances.length > 0
-                  ? {
-                      mint: preTokenBalances[0].mint,
-                      decimals: preTokenBalances[0].uiTokenAmount.decimals,
-                      preAmount: preTokenBalances[0].uiTokenAmount.uiAmount,
-                      postAmount:
-                        postTokenBalances[0]?.uiTokenAmount.uiAmount || 0,
-                    }
-                  : null,
-              // Include SOL balances
-              solBalances: {
-                pre: tx.meta.preBalances[0] / 1e9,
-                post: tx.meta.postBalances[0] / 1e9,
-              },
-              // Include raw data for reference
-              logMessages: tx.meta.logMessages,
-              instructions: tx.transaction.message.instructions,
-              status: tx.meta.err === null ? "success" : "failed",
-            };
-          })
-          .filter((tx) => tx !== null); // Remove failed transactions
-
-        // Calculate net gain/loss
-        const netGain = totalGains - totalLosses;
-
-        // Estimate tax (using simple 15% rate - adjust based on your jurisdiction)
-        const estimatedTax = netGain > 0 ? netGain * 0.15 : 0;
-
-        // Format monthly data for chart
-        const formattedMonthlyData = monthlyData.map((data, index) => ({
-          month: new Date(2024, index, 1).toLocaleString("default", {
-            month: "short",
-          }),
-          gains: data.gains,
-          losses: data.losses,
-        }));
+        // Calculate tax summary
+        const netShortTerm = shortTermGains - shortTermLosses;
+        const netLongTerm = longTermGains - longTermLosses;
+        
+        // Estimate taxes (using simplified rates)
+        const estimatedShortTermTax = Math.max(0, netShortTerm * 0.35); // 35% rate
+        const estimatedLongTermTax = Math.max(0, netLongTerm * 0.15); // 15% rate
 
         setTaxData({
           summary: {
-            totalGains,
-            totalLosses,
-            netGain,
-            estimatedTax,
+            shortTermGains,
+            shortTermLosses,
+            longTermGains,
+            longTermLosses,
+            netShortTerm,
+            netLongTerm,
+            estimatedShortTermTax,
+            estimatedLongTermTax,
             totalFees,
-            totalTransactions: processedTransactions.length,
           },
-          monthlyData: formattedMonthlyData,
-          transactions: processedTransactions,
+          transactions: transactions.sort((a, b) => b.timestamp - a.timestamp),
         });
+
       } catch (error) {
         console.error("Error calculating taxes:", error);
-        // Use sample data as fallback
-        setTaxData({
-          summary: {
-            totalGains: 12450.75,
-            totalLosses: 3280.5,
-            netGain: 9170.25,
-            estimatedTax: 1375.54,
-            totalTransactions: 48,
-            totalFees: 125.3,
-          },
-          monthlyData: [
-            { month: "Jan", gains: 1200, losses: 300 },
-            { month: "Feb", gains: 2100, losses: 450 },
-            { month: "Mar", gains: 1800, losses: 600 },
-            { month: "Apr", gains: 950, losses: 200 },
-            { month: "May", gains: 1600, losses: 380 },
-            { month: "Jun", gains: 800, losses: 150 },
-            { month: "Jul", gains: 1400, losses: 420 },
-            { month: "Aug", gains: 750, losses: 180 },
-            { month: "Sep", gains: 950, losses: 250 },
-            { month: "Oct", gains: 400, losses: 150 },
-            { month: "Nov", gains: 300, losses: 100 },
-            { month: "Dec", gains: 200, losses: 100 },
-          ],
-          transactions: [],
-        });
+        setError("Failed to calculate taxes. Please try again.");
       } finally {
         setLoading(false);
       }
     };
 
     calculateTaxes();
-  }, [selectedYear]);
+  }, [selectedYear, taxMethod]);
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      signDisplay: "always",
+  // Helper function to zip arrays
+  const zip = (a, b) => {
+    return a.map((k, i) => [k, b[i]]);
+  };
+
+  // Helper function to format currency
+  const formatCurrency = (amount, decimals = 2) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
     }).format(amount);
   };
 
-  if (loading || !taxData) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
-      </div>
-    );
-  }
+  // Helper function to determine if transaction is long term
+  const isLongTerm = (acquiredTimestamp, soldTimestamp) => {
+    const oneYear = 365 * 24 * 60 * 60 * 1000;
+    return soldTimestamp - acquiredTimestamp >= oneYear;
+  };
+
+  // Export tax report
+  const exportTaxReport = () => {
+    if (!taxData) return;
+
+    const report = {
+      year: selectedYear,
+      method: taxMethod,
+      summary: taxData.summary,
+      transactions: taxData.transactions,
+    };
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `crypto_tax_report_${selectedYear}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Tax Calculator</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Calculate your crypto tax liability
-          </p>
-        </div>
-        <div className="flex items-center space-x-4">
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold mb-4">Crypto Tax Calculator</h2>
+        <div className="flex gap-4 mb-6">
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
-            className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="px-4 py-2 border rounded-lg"
           >
             <option value="2024">2024</option>
             <option value="2023">2023</option>
             <option value="2022">2022</option>
           </select>
-          <button className="flex items-center space-x-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
-            <Download size={20} />
-            <span>Export</span>
+          <select
+            value={taxMethod}
+            onChange={(e) => setTaxMethod(e.target.value)}
+            className="px-4 py-2 border rounded-lg"
+          >
+            <option value="FIFO">FIFO</option>
+            <option value="LIFO">LIFO</option>
+          </select>
+          <button
+            onClick={exportTaxReport}
+            disabled={!taxData}
+            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50"
+          >
+            <Download size={20} className="inline-block mr-2" />
+            Export Report
           </button>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-gray-500">Total Gains</span>
-            <div className="p-2 bg-green-50 rounded-lg">
-              <TrendUp size={20} className="text-green-500" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-green-500">
-            {formatCurrency(taxData.summary.totalGains)}
-          </p>
+      {error && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6">
+          {error}
         </div>
+      )}
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-gray-500">Total Losses</span>
-            <div className="p-2 bg-red-50 rounded-lg">
-              <TrendDown size={20} className="text-red-500" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-red-500">
-            {formatCurrency(taxData.summary.totalLosses)}
-          </p>
+      {loading ? (
+        <div className="text-center p-12">
+          <Clock size={32} className="animate-spin mx-auto mb-4" />
+          <p>Calculating taxes...</p>
         </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-gray-500">Net Gain/Loss</span>
-            <div className="p-2 bg-purple-50 rounded-lg">
-              <Calculator size={20} className="text-purple-500" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-purple-500">
-            {formatCurrency(taxData.summary.netGain)}
-          </p>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-gray-500">Estimated Tax</span>
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <Clock size={20} className="text-blue-500" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-blue-500">
-            {formatCurrency(taxData.summary.estimatedTax)}
-          </p>
-        </div>
-      </div>
-
-      {/* Monthly Chart */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold mb-6">Monthly Overview</h3>
-        <div className="h-64 flex items-end space-x-4">
-          {taxData.monthlyData.map((data) => (
-            <div key={data.month} className="flex-1 flex flex-col items-center">
-              <div className="w-full space-y-1">
-                <div
-                  className="w-full bg-green-100 rounded-t"
-                  style={{
-                    height: `${
-                      (data.gains /
-                        Math.max(...taxData.monthlyData.map((d) => d.gains))) *
-                      150
-                    }px`,
-                  }}
-                >
-                  <div className="h-full bg-green-500 bg-opacity-20 hover:bg-opacity-40 transition-colors" />
+      ) : taxData ? (
+        <>
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="text-lg font-semibold mb-2">Short Term</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Gains:</span>
+                  <span className="text-green-500">
+                    {formatCurrency(taxData.summary.shortTermGains)}
+                  </span>
                 </div>
-                <div
-                  className="w-full bg-red-100 rounded-b"
-                  style={{
-                    height: `${
-                      (Math.abs(data.losses) /
-                        Math.max(
-                          ...taxData.monthlyData.map((d) => Math.abs(d.losses))
-                        )) *
-                      50
-                    }px`,
-                  }}
-                >
-                  <div className="h-full bg-red-500 bg-opacity-20 hover:bg-opacity-40 transition-colors" />
+                <div className="flex justify-between">
+                  <span>Losses:</span>
+                  <span className="text-red-500">
+                    {formatCurrency(taxData.summary.shortTermLosses)}
+                  </span>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <span>Est. Tax:</span>
+                  <span>{formatCurrency(taxData.summary.estimatedShortTermTax)}</span>
                 </div>
               </div>
-              <span className="text-xs text-gray-500 mt-2">{data.month}</span>
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Transactions */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <button
-            onClick={() => setShowTransactions(!showTransactions)}
-            className="flex items-center justify-between w-full"
-          >
-            <div className="flex items-center space-x-2">
-              <h3 className="text-lg font-semibold">Transaction History</h3>
-              <span className="text-sm text-gray-500">
-                ({taxData.summary.totalTransactions} transactions)
-              </span>
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="text-lg font-semibold mb-2">Long Term</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Gains:</span>
+                  <span className="text-green-500">
+                    {formatCurrency(taxData.summary.longTermGains)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Losses:</span>
+                  <span className="text-red-500">
+                    {formatCurrency(taxData.summary.longTermLosses)}
+                  </span>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <span>Est. Tax:</span>
+                  <span>{formatCurrency(taxData.summary.estimatedLongTermTax)}</span>
+                </div>
+              </div>
             </div>
-            <CaretDown
-              size={20}
-              className={`text-gray-500 transform transition-transform duration-200 ${
-                showTransactions ? "rotate-180" : ""
-              }`}
-            />
-          </button>
-        </div>
-        {showTransactions && (
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {taxData.transactions.map((tx) => (
-              <div
-                key={tx.txHash}
-                className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div
-                      className={`p-2 rounded-lg ${
-                        tx.gainLoss >= 0
-                          ? "bg-green-50 text-green-500"
-                          : "bg-red-50 text-red-500"
-                      }`}
-                    >
-                      {tx.gainLoss >= 0 ? (
-                        <TrendUp size={20} />
-                      ) : (
-                        <TrendDown size={20} />
-                      )}
+          </div>
+
+          <div className="mb-6">
+            <button
+              onClick={() => setShowTransactions(!showTransactions)}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+            >
+              <CaretDown
+                size={20}
+                className={`transform transition-transform ${
+                  showTransactions ? "rotate-180" : ""
+                }`}
+              />
+              {showTransactions ? "Hide" : "Show"} Detailed Transactions
+            </button>
+          </div>
+
+          {showTransactions && (
+            <div className="space-y-4">
+              {taxData.transactions.map((tx, index) => (
+                <div
+                  key={index}
+                  className="bg-white p-4 rounded-lg shadow-sm border border-gray-100"
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={`p-2 rounded-full ${
+                          tx.type === "BUY"
+                            ? "bg-green-100 text-green-600"
+                            : "bg-red-100 text-red-600"
+                        }`}
+                      >
+                        {tx.type === "BUY" ? <TrendUp size={20} /> : <TrendDown size={20} />}
+                      </div>
+                      <div>
+                        <p className="font-medium">
+                          {tx.type} {tx.symbol}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(tx.timestamp).toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">
-                        {tx.type
-                          .split("_")
-                          .map(
-                            (word) =>
-                              word.charAt(0).toUpperCase() + word.slice(1)
-                          )
-                          .join(" ")}
+                    <div className="text-right">
+                      <p
+                        className={`font-medium ${
+                          tx.gainLoss >= 0 ? "text-green-500" : "text-red-500"
+                        }`}
+                      >
+                        {formatCurrency(tx.gainLoss)}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {new Date(tx.timestamp).toLocaleString()}
+                        Price: {formatCurrency(tx.price)}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p
-                      className={`font-medium ${
-                        tx.gainLoss >= 0 ? "text-green-500" : "text-red-500"
-                      }`}
-                    >
-                      {formatCurrency(tx.gainLoss)}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Cost Basis: {formatCurrency(tx.solBalances.pre)}
-                    </p>
-                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="text-center text-gray-500 p-12">
+          No tax data available for the selected year
+        </div>
+      )}
     </div>
   );
 };

@@ -4,29 +4,23 @@ import TransactionCard from "./TransactionCard";
 import transactionData from "/src/data/transactions_20250208_222941.json";
 import tokenMetadata from "/src/data/token_metadata.json";
 
-// Replace the existing tokenMap and fetchTokenList with this:
+// Build tokenMap using local token metadata
 const tokenMap = new Map(
   tokenMetadata.tokens.map((token) => [
     token.address.toLowerCase(),
     {
       symbol: token.symbol,
-      name: token.name !== "Unknown Token" ? token.name : undefined, // Only include name if it's not "Unknown Token"
+      name: token.name !== "Unknown Token" ? token.name : undefined,
       decimals: token.decimals,
       logoURI: token.logoURI,
     },
   ])
 );
 
-// Remove the fetchTokenList function since we're using local data
-
-// Update the getTokenInfo function:
 const getTokenInfo = (mint) => {
   if (!mint) return null;
-
-  // Normalize the mint address
   const normalizedMint = mint.toLowerCase();
   const tokenInfo = tokenMap.get(normalizedMint);
-
   if (!tokenInfo) {
     return {
       symbol: `${mint.slice(0, 4)}...${mint.slice(-4)}`,
@@ -34,31 +28,39 @@ const getTokenInfo = (mint) => {
       logoURI: `https://api.dicebear.com/7.x/identicon/svg?seed=${mint}`,
     };
   }
-
   return tokenInfo;
 };
 
 const findTokenAccount = (mint, preTokenBalances, postTokenBalances) => {
-  // Normalize the mint address for consistent comparison
   const normalizedMint = mint.toLowerCase();
-
-  // Search in preTokenBalances
   const preTokenAccount = preTokenBalances.find(
     (balance) => balance.mint.toLowerCase() === normalizedMint
   );
-
-  // Search in postTokenBalances if not found in preTokenBalances
   const postTokenAccount = postTokenBalances.find(
     (balance) => balance.mint.toLowerCase() === normalizedMint
   );
-
-  // Return the first found token account (prefer preTokenBalances)
   return preTokenAccount || postTokenAccount || null;
+};
+
+const determineTransactionType = (logMessages, instructions, accountKeys) => {
+  if (!instructions || !instructions[0] || !accountKeys) {
+    return "unknown";
+  }
+
+  // Known program IDs for detecting swaps and token operations
+  const programTypes = {
+    "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdap3VQ": "swap", // Orca
+    "SSwpkEEcbUqx4vtoEByFjSkhKdCT862DNVb52nZg1UZ": "swap", // Serum
+    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA": "token",
+    "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4": "swap", // Jupiter
+  };
+
+  const programId = accountKeys[instructions[0].programIdIndex];
+  return programTypes[programId] || "transfer";
 };
 
 const parseTransaction = (transaction) => {
   try {
-    // Extract all necessary data
     const {
       blockTime,
       slot,
@@ -93,7 +95,7 @@ const parseTransaction = (transaction) => {
       throw new Error("Missing required transaction data");
     }
 
-    // Calculate SOL changes for each account
+    // Calculate SOL changes
     const accountChanges = accountKeys.map((address, index) => ({
       address,
       preSol: (preBalances[index] || 0) / 1e9,
@@ -101,13 +103,14 @@ const parseTransaction = (transaction) => {
       change: ((postBalances[index] || 0) - (preBalances[index] || 0)) / 1e9,
     }));
 
-    // Process token transfers
+    // Process token transfers into pre and post arrays
     const tokenChanges = {
       pre: (preTokenBalances || []).map((balance) => ({
         accountIndex: balance.accountIndex,
         mint: balance.mint,
         owner: balance.owner,
         amount: balance.uiTokenAmount?.uiAmount || 0,
+        decimals: balance.uiTokenAmount?.decimals || 0,
         tokenInfo: getTokenInfo(balance.mint),
       })),
       post: (postTokenBalances || []).map((balance) => ({
@@ -115,79 +118,157 @@ const parseTransaction = (transaction) => {
         mint: balance.mint,
         owner: balance.owner,
         amount: balance.uiTokenAmount?.uiAmount || 0,
+        decimals: balance.uiTokenAmount?.decimals || 0,
         tokenInfo: getTokenInfo(balance.mint),
       })),
     };
 
-    // Find source and destination tokens by comparing pre and post balances
-    let sourceToken = null;
-    let destinationToken = null;
+    // Find all unique token accounts that had changes
+    const changedAccounts = new Set();
+    tokenChanges.pre.forEach(pre => {
+      const post = tokenChanges.post.find(p => p.accountIndex === pre.accountIndex);
+      if (post && pre.amount !== post.amount) {
+        changedAccounts.add(pre.accountIndex);
+      }
+    });
+    // Also add new accounts that only appear in post balances
+    tokenChanges.post.forEach(post => {
+      if (!tokenChanges.pre.find(p => p.accountIndex === post.accountIndex)) {
+        changedAccounts.add(post.accountIndex);
+      }
+    });
 
-    // Compare pre and post balances to find significant changes
-    tokenChanges.pre.forEach((preBalance) => {
-      const postBalance = tokenChanges.post.find(
-        (p) => p.mint === preBalance.mint
-      );
-      if (postBalance) {
-        const change = postBalance.amount - preBalance.amount;
-        if (change < 0) {
-          // Token was spent
-          sourceToken = {
-            mint: preBalance.mint,
-            amount: Math.abs(change),
-            tokenInfo: preBalance.tokenInfo,
-          };
-        } else if (change > 0) {
-          // Token was received
-          destinationToken = {
-            mint: preBalance.mint,
-            amount: change,
-            tokenInfo: preBalance.tokenInfo,
-          };
+    // -------------------------------
+    // Revised logic for building the transaction chain:
+    // -------------------------------
+    // Group changes by owner.
+    // A negative diff (pre > post) is a "source" (tokens sent),
+    // while a positive diff (post > pre) is a "destination" (tokens received).
+    const changesByOwner = new Map();
+    changedAccounts.forEach(accountIndex => {
+      const pre = tokenChanges.pre.find(p => p.accountIndex === accountIndex);
+      const post = tokenChanges.post.find(p => p.accountIndex === accountIndex);
+
+      if (pre || post) {
+        const owner = (pre || post).owner;
+        if (!changesByOwner.has(owner)) {
+          changesByOwner.set(owner, { sources: [], destinations: [] });
+        }
+
+        const changes = changesByOwner.get(owner);
+        const preAmount = pre?.amount || 0;
+        const postAmount = post?.amount || 0;
+        const diff = postAmount - preAmount;
+
+        // A negative diff means tokens left (sent) from this owner.
+        if (diff < 0) {
+          changes.sources.push({
+            mint: pre.mint,
+            amount: Math.abs(diff),
+            tokenInfo: pre.tokenInfo,
+            owner: pre.owner,
+            decimals: pre.decimals,
+          });
+        }
+        // A positive diff means tokens arrived (received) for this owner.
+        else if (diff > 0) {
+          changes.destinations.push({
+            mint: post.mint,
+            amount: diff,
+            tokenInfo: post.tokenInfo,
+            owner: post.owner,
+            decimals: post.decimals,
+          });
         }
       }
     });
 
-    // Check for new tokens in post that weren't in pre
-    tokenChanges.post.forEach((postBalance) => {
-      const preBalance = tokenChanges.pre.find(
-        (p) => p.mint === postBalance.mint
-      );
-      if (!preBalance && postBalance.amount > 0) {
-        destinationToken = {
-          mint: postBalance.mint,
-          amount: postBalance.amount,
-          tokenInfo: postBalance.tokenInfo,
-        };
-      }
+    // Build the transaction chain by ordering owners as they appear in accountKeys.
+    // This guarantees that even one-step chains (i.e. one owner) with both a sending and receiving
+    // change hold their changes separately.
+    let transactionChain = [];
+    const orderedOwners = accountKeys.filter((owner) => changesByOwner.has(owner));
+    orderedOwners.forEach((owner) => {
+      const changes = changesByOwner.get(owner);
+      transactionChain.push({
+        owner,
+        // Keys are now defined as 'source' and 'destination' (singular)
+        source: changes.sources,
+        destination: changes.destinations,
+      });
     });
 
-    // Calculate primary amount based on transfer type
+    // Determine global endpoints in the chain.
+    // For multi-step transactions, the first owner with a sending change is the global sender,
+    // and the last owner with a receiving change is the global receiver.
+    let firstStep =
+      transactionChain.find((step) => step.source.length > 0) || transactionChain[0];
+    let lastStep =
+      transactionChain
+        .slice()
+        .reverse()
+        .find((step) => step.destination.length > 0) ||
+      transactionChain[transactionChain.length - 1];
+
+    // Populate overall token arrays for display.
+    const sourceTokens = [];
+    const destinationTokens = [];
+    if (firstStep) {
+      sourceTokens.push(...firstStep.source);
+    }
+    if (lastStep) {
+      destinationTokens.push(...lastStep.destination);
+    }
+
+    // -------------------------------
+    // End of revised chain construction.
+    // -------------------------------
+
     let primaryAmount = "0 SOL";
     let txType = "unknown";
+    let sortValue = 0;
 
-    if (sourceToken && destinationToken) {
-      primaryAmount = `${sourceToken.amount} ${
-        sourceToken.tokenInfo?.symbol || "tokens"
-      } to ${destinationToken.amount} ${
-        destinationToken.tokenInfo?.symbol || "tokens"
+    if (sourceTokens.length > 0 && destinationTokens.length > 0) {
+      const firstSource = sourceTokens[0];
+      const lastDestination = destinationTokens[destinationTokens.length - 1];
+      primaryAmount = `${firstSource.amount.toFixed(4)} ${
+        firstSource.tokenInfo?.symbol || "tokens"
+      } to ${lastDestination.amount.toFixed(4)} ${
+        lastDestination.tokenInfo?.symbol || "tokens"
       }`;
       txType = "swap";
-    } else if (sourceToken || destinationToken) {
+      sortValue = firstSource.amount;
+    } else if (sourceTokens.length > 0 || destinationTokens.length > 0) {
       txType = "transfer";
-      primaryAmount = sourceToken
-        ? `${sourceToken.amount} ${sourceToken.tokenInfo?.symbol || "tokens"}`
-        : `${destinationToken.amount} ${
-            destinationToken.tokenInfo?.symbol || "tokens"
-          }`;
+      if (sourceTokens.length > 0) {
+        primaryAmount = `${sourceTokens[0].amount.toFixed(4)} ${
+          sourceTokens[0].tokenInfo?.symbol || "tokens"
+        }`;
+        sortValue = sourceTokens[0].amount;
+      } else {
+        primaryAmount = `${destinationTokens[0].amount.toFixed(4)} ${
+          destinationTokens[0].tokenInfo?.symbol || "tokens"
+        }`;
+        sortValue = destinationTokens[0].amount;
+      }
     } else {
+      if (accountChanges && accountChanges.length > 0) {
+        primaryAmount = `${Math.abs(accountChanges[0].change).toFixed(4)} SOL`;
+        sortValue = Math.abs(accountChanges[0].change);
+      }
       txType = determineTransactionType(logMessages, instructions, accountKeys);
-      primaryAmount = tokenChanges.pre[0]
-        ? `${Math.abs(tokenChanges.pre[0].amount)} ${
-            tokenChanges.pre[0].tokenInfo?.symbol || "tokens"
-          }`
-        : "0 SOL";
     }
+
+    const sender = sourceTokens.length > 0 ? sourceTokens[0].owner : accountKeys[0];
+    const receiver =
+      destinationTokens.length > 0
+        ? destinationTokens[0].owner
+        : accountKeys[1] || accountKeys[0];
+
+    // For swap transactions even in one‐step chains (same owner)
+    // the “source” (tokens sent) and “destination” (tokens received) are clearly defined.
+    const initialSource = sourceTokens[0];
+    const finalDestination = destinationTokens[destinationTokens.length - 1];
 
     return {
       id: signatures[0],
@@ -201,13 +282,10 @@ const parseTransaction = (transaction) => {
       status: err === null ? "success" : "failed",
       computeUnits: computeUnitsConsumed,
       fee: fee / 1e9,
-      sender: accountKeys[0],
-      receiver: sourceToken
-        ? accountKeys[accountKeys.length - 1]
-        : destinationToken
-        ? accountKeys[accountKeys.length - 1]
-        : accountKeys[1],
+      sender,
+      receiver,
       amount: primaryAmount,
+      sortValue,
       accountChanges,
       tokenChanges,
       logMessages,
@@ -223,29 +301,14 @@ const parseTransaction = (transaction) => {
         addressTableLookups,
         rewards,
       },
-      source: sourceToken,
-      destination: destinationToken,
+      source: [initialSource],
+      destination: [finalDestination],
+      transactionChain,
     };
   } catch (error) {
     console.error("Error parsing transaction:", error);
     return null;
   }
-};
-
-const determineTransactionType = (logMessages, instructions, accountKeys) => {
-  if (!instructions || !instructions[0] || !accountKeys) {
-    return "unknown";
-  }
-
-  // Check for known program IDs
-  const programTypes = {
-    "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdap3VQ": "swap", // Orca
-    SSwpkEEcbUqx4vtoEByFjSkhKdCT862DNVb52nZg1UZ: "swap", // Serum
-    TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA: "token",
-  };
-
-  const programId = accountKeys[instructions[0].programIdIndex];
-  return programTypes[programId] || "transfer";
 };
 
 const TransactionHistory = () => {
@@ -279,7 +342,6 @@ const TransactionHistory = () => {
 
     try {
       console.log("Parsing transactions...");
-      // Parse each transaction
       const parsedTransactions = rawTransactions
         .map((tx) => {
           try {
@@ -290,13 +352,8 @@ const TransactionHistory = () => {
           }
         })
         .filter((tx) => tx !== null);
+      console.log("Successfully parsed transactions:", parsedTransactions.length);
 
-      console.log(
-        "Successfully parsed transactions:",
-        parsedTransactions.length
-      );
-
-      // Apply search filter
       let filtered = parsedTransactions;
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -325,19 +382,16 @@ const TransactionHistory = () => {
           default:
             break;
         }
-        filtered = filtered.filter(
-          (tx) => new Date(tx.timestamp) >= filterDate
-        );
+        filtered = filtered.filter((tx) => new Date(tx.timestamp) >= filterDate);
       }
 
       // Apply sorting
       return filtered.sort((a, b) => {
         if (sortBy === "amount") {
-          const amountA = parseFloat(a.amount);
-          const amountB = parseFloat(b.amount);
+          const amountA = a.sortValue || 0;
+          const amountB = b.sortValue || 0;
           return sortOrder === "desc" ? amountB - amountA : amountA - amountB;
         }
-        // Sort by time
         const dateA = new Date(a.timestamp);
         const dateB = new Date(b.timestamp);
         return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
