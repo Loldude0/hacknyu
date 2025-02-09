@@ -32,10 +32,10 @@ def get_token_decimals(mint_address):
 
 
 
-def send_sol(sender: Keypair, receiver: Pubkey, amount_sol: int): 
-    amount_lamports = solToLamport(amount_sol)
+def send_sol(sender: Keypair, receiver: Pubkey, amount_sol): 
+    amount_lamports = int(solToLamport(amount_sol))
     # Initialize Solana client
-    client = Client("https://api.devnet.solana.com")
+    client = Client("https://api.mainnet-beta.solana.com")
     
     print(client.get_balance(sender.pubkey()))
 
@@ -72,19 +72,14 @@ def send_sol(sender: Keypair, receiver: Pubkey, amount_sol: int):
 
 
 # Initialize sender wallet (replace with your keypair)
-sender = Keypair.from_base58_string("2PgjehR2CXESrgb5y6SPpF8nJDeXquDeqUWvd48HfiCE1p5qeJ1LWqvJf2jLqpnLgdQCjx7x5F7WPQjeX4wc9AAf")
-
-# Receiver's public key
-receiver = Pubkey.from_string("HEmpRb9etVX6oivUmGvhxYzc171mBYKgQ79wTeqvRpa7")
-
 # Send 0.1 SOL (100000000 lamports)
 
-# signature = send_sol(sender, receiver, 1)
+# signature = send_sol(sender, receiver, 0.05)
 # print(f"Transaction signature: {signature}")
 
 
 def getBalance(publicKey: Pubkey) -> float:
-    client = Client("https://api.devnet.solana.com")
+    client = Client("https://api.mainnet-beta.solana.com")
 
     return lamportToSol(client.get_balance(publicKey).value)
 
@@ -108,7 +103,7 @@ def get_jupiter_quote(input_mint, output_mint, amount):
     print(response.json())
     return response.json()
 
-def get_swap_instructions(route):
+def get_swap_instructions(route, public_key):
     url = "https://api.jup.ag/swap/v1/swap"
     headers = {
     'Content-Type': 'application/json',
@@ -116,7 +111,7 @@ def get_swap_instructions(route):
     }
     payload = {
         "quoteResponse": route,
-        "userPublicKey": "EcuKzCh7zZXUvTpq3Ao2S2rVS2h9WoLRkNdi9JkuByt7",  # Your wallet public key
+        "userPublicKey": public_key,  # Your wallet public key
         "wrapUnwrapSOL": True                        # Auto wrap/unwrap SOL
     }
     
@@ -126,14 +121,16 @@ def get_swap_instructions(route):
 
 
 import base64
-def execute_jupiter_swap(input_mint: str,output_mint: str, amount: float, wallet_keypair: Keypair):
+def execute_jupiter_swap(input_mint: str,output_mint: str, amount: float, wallet_keypair: Keypair, public_key: str):
+
+    amount=smallToReal(amount, input_mint)
 
     client = Client("https://api.mainnet-beta.solana.com")
     # 1. Get quote
     quote = get_jupiter_quote(input_mint, output_mint, amount)
     
     # 2. Get swap instructions
-    swap_instructions = get_swap_instructions(quote)
+    swap_instructions = get_swap_instructions(quote, public_key)
 
     transaction_bytes = base64.b64decode(swap_instructions['swapTransaction'])
     transaction = VersionedTransaction.from_bytes(transaction_bytes)
@@ -150,6 +147,6 @@ def smallToReal(amount, addy):
 
 
 # Example token addresses (USDC and SOL)
-INPUT_MINT = "So11111111111111111111111111111111111111112"  
-OUTPUT_MINT = "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump"   
-print(smallToReal(0.05, INPUT_MINT))
+# INPUT_MINT = "So11111111111111111111111111111111111111112"  
+# OUTPUT_MINT = "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump"   
+# print(smallToReal(0.05, INPUT_MINT))
