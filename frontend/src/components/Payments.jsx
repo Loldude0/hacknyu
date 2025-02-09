@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ArrowRight,
   ArrowLeft,
@@ -8,6 +8,7 @@ import {
   Plus,
 } from "@phosphor-icons/react";
 import TransactionCard from "./TransactionCard";
+import { fetchRecentTransactions } from "../utils/transactionService";
 
 // Sample data (you might want to move this to a separate data file)
 const sampleContacts = [
@@ -31,42 +32,53 @@ const sampleContacts = [
   },
 ];
 
-const sampleTransactions = [
-  {
-    id: "1",
-    txHash: "5KtQ9...7Ypx",
-    amount: "2.5 SOL",
-    timestamp: "2024-02-17 14:30",
-    status: "success",
-    sender: "8xzt...9Kpq",
-    receiver: "3Nmt...2Wsx",
-    fee: "0.000005 SOL",
-  },
-  {
-    id: "2",
-    txHash: "8Pnm2...4Rtz",
-    amount: "1.8 SOL",
-    timestamp: "2024-02-17 13:15",
-    status: "pending",
-    sender: "5Yxc...7Lpk",
-    receiver: "9Qws...4Mnb",
-    fee: "0.000005 SOL",
-  },
-];
-
 const Payments = () => {
   const [activeView, setActiveView] = useState("send");
   const [amount, setAmount] = useState("");
   const [recipientAddress, setRecipientAddress] = useState("");
   const [note, setNote] = useState("");
   const [showAddressBook, setShowAddressBook] = useState(false);
+  const [transactions, setTransactions] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const solanaPublicKey = "HEmpRb9etVX6oivUmGvhxYzc171mBYKgQ79wTeqvRpa7"; // You might want to get this from a context or props
 
   const myWalletAddress = "7Hnm...1Rty";
+
+  useEffect(() => {
+    loadTransactions();
+  }, []);
+
+  const loadTransactions = async () => {
+    try {
+      setIsLoading(true);
+      const data = await fetchRecentTransactions(solanaPublicKey);
+      setTransactions(data);
+      setError(null);
+    } catch (err) {
+      setError("Failed to load transactions");
+      console.error("Error loading transactions:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSend = () => {
     // This will be implemented with actual blockchain interaction later
     console.log("Sending payment...");
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="text-center text-red-500 p-4">{error}</div>;
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -237,8 +249,37 @@ const Payments = () => {
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Recent Activity</h3>
         <div className="space-y-2">
-          {sampleTransactions.map((transaction) => (
-            <TransactionCard key={transaction.id} transaction={transaction} />
+          {transactions.map((tx) => (
+            <div
+              key={tx.id}
+              className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow border border-gray-200 dark:border-gray-700"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div
+                    className={`p-2 rounded-lg ${
+                      tx.type === "receive"
+                        ? "bg-green-100 text-green-600"
+                        : "bg-red-100 text-red-600"
+                    }`}
+                  >
+                    {tx.type === "receive" ? "↓" : "↑"}
+                  </div>
+                  <div>
+                    <p className="font-medium">
+                      {tx.type === "receive" ? "Received" : "Sent"} {tx.amount}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {tx.type === "receive" ? "From" : "To"}: {tx.to}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">{tx.timestamp}</p>
+                  <p className="text-xs text-gray-400">{tx.status}</p>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       </div>

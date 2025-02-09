@@ -72,12 +72,16 @@ const TransactionCard = ({ transaction }) => {
   // Updated display for swap transactions using normalized and aggregated amounts
   const formatTransactionDisplay = () => {
     if (!transaction) return null;
-  
-    if (transaction.type === "swap" && transaction.source && transaction.destination) {
+
+    if (
+      transaction.type === "swap" &&
+      transaction.source &&
+      transaction.destination
+    ) {
       // Use the initial source and final destination for the main display
       const sourceToken = transaction.source[0];
       const destinationToken = transaction.destination[0];
-  
+
       return (
         <div className="flex items-center space-x-2">
           {/* Initial Source Token */}
@@ -90,12 +94,13 @@ const TransactionCard = ({ transaction }) => {
               />
             )}
             <span className="text-sm font-medium">
-              {sourceToken?.amount.toFixed(4)} {sourceToken?.tokenInfo?.symbol || "Token"}
+              {sourceToken?.amount.toFixed(4)}{" "}
+              {sourceToken?.tokenInfo?.symbol || "Token"}
             </span>
           </div>
-  
+
           <ArrowRight size={16} className="text-gray-400" />
-  
+
           {/* Final Destination Token */}
           <div className="flex items-center space-x-1">
             {destinationToken?.tokenInfo?.logoURI && (
@@ -106,7 +111,8 @@ const TransactionCard = ({ transaction }) => {
               />
             )}
             <span className="text-sm font-medium">
-              {destinationToken?.amount.toFixed(4)} {destinationToken?.tokenInfo?.symbol || "Token"}
+              {destinationToken?.amount.toFixed(4)}{" "}
+              {destinationToken?.tokenInfo?.symbol || "Token"}
             </span>
           </div>
         </div>
@@ -119,7 +125,7 @@ const TransactionCard = ({ transaction }) => {
 
   const renderFullTransactionChain = () => {
     if (!transaction.transactionChain?.length) return null;
-    
+
     return (
       <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
         <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
@@ -131,7 +137,10 @@ const TransactionCard = ({ transaction }) => {
               {/* Source Tokens */}
               <div className="flex items-center space-x-1">
                 {step.source.map((sourceToken, tokenIndex) => (
-                  <div key={`source-${stepIndex}-${tokenIndex}`} className="flex items-center space-x-1">
+                  <div
+                    key={`source-${stepIndex}-${tokenIndex}`}
+                    className="flex items-center space-x-1"
+                  >
                     {sourceToken.tokenInfo?.logoURI && (
                       <img
                         src={sourceToken.tokenInfo.logoURI}
@@ -140,18 +149,22 @@ const TransactionCard = ({ transaction }) => {
                       />
                     )}
                     <span className="text-sm">
-                      {sourceToken.amount.toFixed(4)} {sourceToken.tokenInfo?.symbol || "Token"}
+                      {sourceToken.amount.toFixed(4)}{" "}
+                      {sourceToken.tokenInfo?.symbol || "Token"}
                     </span>
                   </div>
                 ))}
               </div>
-  
+
               <ArrowRight size={16} className="text-gray-400" />
-  
+
               {/* Destination Tokens */}
               <div className="flex items-center space-x-1">
                 {step.destination.map((destToken, tokenIndex) => (
-                  <div key={`dest-${stepIndex}-${tokenIndex}`} className="flex items-center space-x-1">
+                  <div
+                    key={`dest-${stepIndex}-${tokenIndex}`}
+                    className="flex items-center space-x-1"
+                  >
                     {destToken.tokenInfo?.logoURI && (
                       <img
                         src={destToken.tokenInfo.logoURI}
@@ -160,7 +173,8 @@ const TransactionCard = ({ transaction }) => {
                       />
                     )}
                     <span className="text-sm">
-                      {destToken.amount.toFixed(4)} {destToken.tokenInfo?.symbol || "Token"}
+                      {destToken.amount.toFixed(4)}{" "}
+                      {destToken.tokenInfo?.symbol || "Token"}
                     </span>
                   </div>
                 ))}

@@ -50,9 +50,9 @@ const determineTransactionType = (logMessages, instructions, accountKeys) => {
   // Known program IDs for detecting swaps and token operations
   const programTypes = {
     "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdap3VQ": "swap", // Orca
-    "SSwpkEEcbUqx4vtoEByFjSkhKdCT862DNVb52nZg1UZ": "swap", // Serum
-    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA": "token",
-    "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4": "swap", // Jupiter
+    SSwpkEEcbUqx4vtoEByFjSkhKdCT862DNVb52nZg1UZ: "swap", // Serum
+    TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA: "token",
+    JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4: "swap", // Jupiter
   };
 
   const programId = accountKeys[instructions[0].programIdIndex];
@@ -125,15 +125,17 @@ const parseTransaction = (transaction) => {
 
     // Find all unique token accounts that had changes
     const changedAccounts = new Set();
-    tokenChanges.pre.forEach(pre => {
-      const post = tokenChanges.post.find(p => p.accountIndex === pre.accountIndex);
+    tokenChanges.pre.forEach((pre) => {
+      const post = tokenChanges.post.find(
+        (p) => p.accountIndex === pre.accountIndex
+      );
       if (post && pre.amount !== post.amount) {
         changedAccounts.add(pre.accountIndex);
       }
     });
     // Also add new accounts that only appear in post balances
-    tokenChanges.post.forEach(post => {
-      if (!tokenChanges.pre.find(p => p.accountIndex === post.accountIndex)) {
+    tokenChanges.post.forEach((post) => {
+      if (!tokenChanges.pre.find((p) => p.accountIndex === post.accountIndex)) {
         changedAccounts.add(post.accountIndex);
       }
     });
@@ -145,9 +147,11 @@ const parseTransaction = (transaction) => {
     // A negative diff (pre > post) is a "source" (tokens sent),
     // while a positive diff (post > pre) is a "destination" (tokens received).
     const changesByOwner = new Map();
-    changedAccounts.forEach(accountIndex => {
-      const pre = tokenChanges.pre.find(p => p.accountIndex === accountIndex);
-      const post = tokenChanges.post.find(p => p.accountIndex === accountIndex);
+    changedAccounts.forEach((accountIndex) => {
+      const pre = tokenChanges.pre.find((p) => p.accountIndex === accountIndex);
+      const post = tokenChanges.post.find(
+        (p) => p.accountIndex === accountIndex
+      );
 
       if (pre || post) {
         const owner = (pre || post).owner;
@@ -187,7 +191,9 @@ const parseTransaction = (transaction) => {
     // This guarantees that even one-step chains (i.e. one owner) with both a sending and receiving
     // change hold their changes separately.
     let transactionChain = [];
-    const orderedOwners = accountKeys.filter((owner) => changesByOwner.has(owner));
+    const orderedOwners = accountKeys.filter((owner) =>
+      changesByOwner.has(owner)
+    );
     orderedOwners.forEach((owner) => {
       const changes = changesByOwner.get(owner);
       transactionChain.push({
@@ -202,7 +208,8 @@ const parseTransaction = (transaction) => {
     // For multi-step transactions, the first owner with a sending change is the global sender,
     // and the last owner with a receiving change is the global receiver.
     let firstStep =
-      transactionChain.find((step) => step.source.length > 0) || transactionChain[0];
+      transactionChain.find((step) => step.source.length > 0) ||
+      transactionChain[0];
     let lastStep =
       transactionChain
         .slice()
@@ -259,7 +266,8 @@ const parseTransaction = (transaction) => {
       txType = determineTransactionType(logMessages, instructions, accountKeys);
     }
 
-    const sender = sourceTokens.length > 0 ? sourceTokens[0].owner : accountKeys[0];
+    const sender =
+      sourceTokens.length > 0 ? sourceTokens[0].owner : accountKeys[0];
     const receiver =
       destinationTokens.length > 0
         ? destinationTokens[0].owner
@@ -352,7 +360,10 @@ const TransactionHistory = () => {
           }
         })
         .filter((tx) => tx !== null);
-      console.log("Successfully parsed transactions:", parsedTransactions.length);
+      console.log(
+        "Successfully parsed transactions:",
+        parsedTransactions.length
+      );
 
       let filtered = parsedTransactions;
       if (searchQuery) {
@@ -382,7 +393,9 @@ const TransactionHistory = () => {
           default:
             break;
         }
-        filtered = filtered.filter((tx) => new Date(tx.timestamp) >= filterDate);
+        filtered = filtered.filter(
+          (tx) => new Date(tx.timestamp) >= filterDate
+        );
       }
 
       // Apply sorting

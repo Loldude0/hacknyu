@@ -44,6 +44,7 @@ const tokenMap = new Map(
 const TaxCalculator = () => {
   const [selectedYear, setSelectedYear] = useState("2024");
   const [taxMethod, setTaxMethod] = useState("FIFO");
+  const [taxMethod, setTaxMethod] = useState("FIFO");
   const [showTransactions, setShowTransactions] = useState(false);
   const [taxData, setTaxData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -143,10 +144,17 @@ const TaxCalculator = () => {
 
   useEffect(() => {
     const calculateTaxes = async () => {
+    const calculateTaxes = async () => {
       try {
         setLoading(true);
         setError(null);
+        setError(null);
 
+        // Initialize tax tracking
+        let shortTermGains = 0;
+        let shortTermLosses = 0;
+        let longTermGains = 0;
+        let longTermLosses = 0;
         // Initialize tax tracking
         let shortTermGains = 0;
         let shortTermLosses = 0;
@@ -286,13 +294,23 @@ const TaxCalculator = () => {
             netLongTerm,
             estimatedShortTermTax,
             estimatedLongTermTax,
+            shortTermGains,
+            shortTermLosses,
+            longTermGains,
+            longTermLosses,
+            netShortTerm,
+            netLongTerm,
+            estimatedShortTermTax,
+            estimatedLongTermTax,
             totalFees,
           },
+          transactions: transactions.sort((a, b) => b.timestamp - a.timestamp),
           transactions: transactions.sort((a, b) => b.timestamp - a.timestamp),
         });
 
       } catch (error) {
         console.error("Error calculating taxes:", error);
+        setError("Failed to calculate taxes. Please try again.");
         setError("Failed to calculate taxes. Please try again.");
       } finally {
         setLoading(false);
@@ -300,6 +318,7 @@ const TaxCalculator = () => {
     };
 
     calculateTaxes();
+  }, [selectedYear, taxMethod]);
   }, [selectedYear, taxMethod]);
 
   // Helper function to zip arrays
@@ -350,15 +369,35 @@ const TaxCalculator = () => {
       <div className="mb-8">
         <h2 className="text-2xl font-bold mb-4">Crypto Tax Calculator</h2>
         <div className="flex gap-4 mb-6">
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold mb-4">Crypto Tax Calculator</h2>
+        <div className="flex gap-4 mb-6">
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
+            className="px-4 py-2 border rounded-lg"
             className="px-4 py-2 border rounded-lg"
           >
             <option value="2024">2024</option>
             <option value="2023">2023</option>
             <option value="2022">2022</option>
           </select>
+          <select
+            value={taxMethod}
+            onChange={(e) => setTaxMethod(e.target.value)}
+            className="px-4 py-2 border rounded-lg"
+          >
+            <option value="FIFO">FIFO</option>
+            <option value="LIFO">LIFO</option>
+          </select>
+          <button
+            onClick={exportTaxReport}
+            disabled={!taxData}
+            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50"
+          >
+            <Download size={20} className="inline-block mr-2" />
+            Export Report
           <select
             value={taxMethod}
             onChange={(e) => setTaxMethod(e.target.value)}
@@ -381,7 +420,16 @@ const TaxCalculator = () => {
       {error && (
         <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6">
           {error}
+      {error && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6">
+          {error}
         </div>
+      )}
+
+      {loading ? (
+        <div className="text-center p-12">
+          <Clock size={32} className="animate-spin mx-auto mb-4" />
+          <p>Calculating taxes...</p>
       )}
 
       {loading ? (
@@ -428,12 +476,29 @@ const TaxCalculator = () => {
                   <span className="text-red-500">
                     {formatCurrency(taxData.summary.longTermLosses)}
                   </span>
+
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="text-lg font-semibold mb-2">Long Term</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Gains:</span>
+                  <span className="text-green-500">
+                    {formatCurrency(taxData.summary.longTermGains)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Losses:</span>
+                  <span className="text-red-500">
+                    {formatCurrency(taxData.summary.longTermLosses)}
+                  </span>
                 </div>
                 <div className="flex justify-between font-semibold">
                   <span>Est. Tax:</span>
                   <span>{formatCurrency(taxData.summary.estimatedLongTermTax)}</span>
                 </div>
               </div>
+            </div>
+          </div>
             </div>
           </div>
 
