@@ -24,6 +24,9 @@ const COINGECKO_TOKEN_MAP = {
   // Add more token mappings as needed
 };
 
+// Price cache to avoid redundant API calls
+const priceCache = new Map();
+
 // Build tokenMap using local token metadata
 const tokenMap = new Map(
   tokenMetadata.tokens.map((token) => [
@@ -47,27 +50,60 @@ const TaxCalculator = () => {
   const [priceData, setPriceData] = useState({});
   const [error, setError] = useState(null);
 
-  // Fetch historical price data from CoinGecko
-  const fetchHistoricalPrice = async (coingeckoId, timestamp) => {
-    try {
-      const date = new Date(timestamp);
-      const dateString = date.toISOString().split('T')[0];
+  // Batch fetch historical prices for multiple dates and tokens
+  const batchFetchHistoricalPrices = async (requests) => {
+    const uniqueRequests = new Map();
+    
+    // Deduplicate requests by date and token
+    requests.forEach(({ coingeckoId, timestamp }) => {
+      const date = new Date(timestamp).toISOString().split('T')[0];
+      const key = `${coingeckoId}-${date}`;
       
-      const response = await axios.get(
-        `${COINGECKO_API_BASE}/coins/${coingeckoId}/history`,
-        {
-          params: {
-            date: dateString,
-            localization: false,
-          }
-        }
-      );
+      if (!priceCache.has(key)) {
+        uniqueRequests.set(key, { coingeckoId, date });
+      }
+    });
 
-      return response.data.market_data?.current_price?.usd || null;
-    } catch (error) {
-      console.error(`Error fetching price for ${coingeckoId}:`, error);
-      return null;
+    // Process unique requests in batches of 10
+    const batchSize = 10;
+    const uniqueRequestsArray = Array.from(uniqueRequests.values());
+    const results = new Map();
+
+    for (let i = 0; i < uniqueRequestsArray.length; i += batchSize) {
+      const batch = uniqueRequestsArray.slice(i, i + batchSize);
+      const promises = batch.map(async ({ coingeckoId, date }) => {
+        try {
+          const response = await axios.get(
+            `${COINGECKO_API_BASE}/coins/${coingeckoId}/history`,
+            {
+              params: {
+                date,
+                localization: false,
+              }
+            }
+          );
+          const price = response.data.market_data?.current_price?.usd || null;
+          const key = `${coingeckoId}-${date}`;
+          priceCache.set(key, price);
+          results.set(key, price);
+        } catch (error) {
+          console.error(`Error fetching price for ${coingeckoId} on ${date}:`, error);
+        }
+      });
+
+      await Promise.all(promises);
+      // Add a small delay between batches to respect rate limits
+      if (i + batchSize < uniqueRequestsArray.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
+
+    // Return prices for all requested combinations
+    return requests.map(({ coingeckoId, timestamp }) => {
+      const date = new Date(timestamp).toISOString().split('T')[0];
+      const key = `${coingeckoId}-${date}`;
+      return priceCache.get(key);
+    });
   };
 
   // Fetch current prices for all relevant tokens
@@ -125,19 +161,21 @@ const TaxCalculator = () => {
         // Process transactions chronologically
         const sortedTransactions = [...transactionData].sort((a, b) => a.blockTime - b.blockTime);
 
+        // Collect all price requests first
+        const priceRequests = [];
+        const relevantTransactions = [];
+
         for (const tx of sortedTransactions) {
           if (tx.meta.err !== null) continue;
 
           const timestamp = tx.blockTime * 1000;
           const date = new Date(timestamp);
           
-          // Skip transactions not in selected year
           if (date.getFullYear().toString() !== selectedYear) continue;
 
           const fee = tx.meta.fee / 1e9;
           totalFees += fee;
 
-          // Process token changes
           const preTokenBalances = tx.meta.preTokenBalances || [];
           const postTokenBalances = tx.meta.postTokenBalances || [];
 
@@ -153,60 +191,80 @@ const TaxCalculator = () => {
 
             if (difference === 0) continue;
 
-            // Fetch historical price for this transaction
-            const price = await fetchHistoricalPrice(tokenInfo.coingeckoId, timestamp);
-            if (!price) continue;
+            priceRequests.push({
+              coingeckoId: tokenInfo.coingeckoId,
+              timestamp: timestamp
+            });
 
-            if (difference > 0) {
-              // Buy/Receive tokens
-              if (!holdings[pre.mint]) holdings[pre.mint] = [];
-              holdings[pre.mint].push({
-                amount: difference,
-                price: price,
-                timestamp: timestamp,
-              });
-            } else {
-              // Sell/Send tokens
-              const saleAmount = Math.abs(difference);
-              let remainingAmount = saleAmount;
-              let totalCostBasis = 0;
+            relevantTransactions.push({
+              tx,
+              tokenInfo,
+              difference,
+              timestamp,
+              pre,
+              post
+            });
+          }
+        }
+
+        // Batch fetch all required prices
+        const prices = await batchFetchHistoricalPrices(priceRequests);
+        let priceIndex = 0;
+
+        // Process transactions with cached prices
+        for (const { tx, tokenInfo, difference, timestamp, pre } of relevantTransactions) {
+          const price = prices[priceIndex++];
+          if (!price) continue;
+
+          if (difference > 0) {
+            // Buy/Receive tokens
+            if (!holdings[pre.mint]) holdings[pre.mint] = [];
+            holdings[pre.mint].push({
+              amount: difference,
+              price: price,
+              timestamp: timestamp,
+            });
+          } else {
+            // Sell/Send tokens
+            const saleAmount = Math.abs(difference);
+            let remainingAmount = saleAmount;
+            let totalCostBasis = 0;
+            
+            const lots = taxMethod === 'FIFO' 
+              ? holdings[pre.mint] 
+              : [...holdings[pre.mint]].reverse();
+
+            while (remainingAmount > 0 && lots.length > 0) {
+              const lot = lots[0];
+              const amountFromLot = Math.min(remainingAmount, lot.amount);
               
-              const lots = taxMethod === 'FIFO' 
-                ? holdings[pre.mint] 
-                : [...holdings[pre.mint]].reverse();
+              const gainLoss = (price - lot.price) * amountFromLot;
+              const isLongTermHold = isLongTerm(lot.timestamp, timestamp);
 
-              while (remainingAmount > 0 && lots.length > 0) {
-                const lot = lots[0];
-                const amountFromLot = Math.min(remainingAmount, lot.amount);
-                
-                const gainLoss = (price - lot.price) * amountFromLot;
-                const isLongTermHold = isLongTerm(lot.timestamp, timestamp);
-
-                if (gainLoss > 0) {
-                  if (isLongTermHold) longTermGains += gainLoss;
-                  else shortTermGains += gainLoss;
-                } else {
-                  if (isLongTermHold) longTermLosses += Math.abs(gainLoss);
-                  else shortTermLosses += Math.abs(gainLoss);
-                }
-
-                totalCostBasis += lot.price * amountFromLot;
-                remainingAmount -= amountFromLot;
-                lot.amount -= amountFromLot;
-
-                if (lot.amount === 0) lots.shift();
+              if (gainLoss > 0) {
+                if (isLongTermHold) longTermGains += gainLoss;
+                else shortTermGains += gainLoss;
+              } else {
+                if (isLongTermHold) longTermLosses += Math.abs(gainLoss);
+                else shortTermLosses += Math.abs(gainLoss);
               }
 
-              transactions.push({
-                timestamp,
-                type: "SELL",
-                symbol: tokenInfo.symbol,
-                amount: saleAmount,
-                price: price,
-                costBasis: totalCostBasis,
-                gainLoss: price * saleAmount - totalCostBasis,
-              });
+              totalCostBasis += lot.price * amountFromLot;
+              remainingAmount -= amountFromLot;
+              lot.amount -= amountFromLot;
+
+              if (lot.amount === 0) lots.shift();
             }
+
+            transactions.push({
+              timestamp,
+              type: "SELL",
+              symbol: tokenInfo.symbol,
+              amount: saleAmount,
+              price: price,
+              costBasis: totalCostBasis,
+              gainLoss: price * saleAmount - totalCostBasis,
+            });
           }
         }
 
