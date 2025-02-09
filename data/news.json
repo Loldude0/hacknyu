@@ -1,0 +1,497 @@
+{
+  "last_updated": "2025-02-09T00:52:44.585320",
+  "news_items": [
+    {
+      "time": "2025-02-08T05:34:00Z",
+      "headline": "Intchains Group Limited’s Goldshell launches its first ever ALEO miner today: AE BOX promises users ultimate crypto mining privacy and security",
+      "url": "https://www.globenewswire.com/news-release/2025/02/08/3023064/0/en/Intchains-Group-Limited-s-Goldshell-launches-its-first-ever-ALEO-miner-today-AE-BOX-promises-users-ultimate-crypto-mining-privacy-and-security.html",
+      "summary": "Intchains Group Limited's Goldshell is launching its first ALEO miner, the AE BOX, promising enhanced privacy and security for crypto mining. This suggests a positive development for the ALEO ecosystem, though the overall market impact may be limited.",
+      "related_cryptocurrency": [
+        "ALEO"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-08T05:07:33Z",
+      "headline": "Did Kanye West just expose how celebrity X hacks are used to pump fake Solana meme coins?",
+      "url": "https://cryptobriefing.com/kanye-west-crypto-contact-coinbase/",
+      "summary": "The article discusses how celebrity X (formerly Twitter) account hacks are potentially being used to pump and dump fake Solana meme coins, raising concerns about social media security vulnerabilities, public trust, and potential financial losses.",
+      "related_cryptocurrency": [
+        "Solana"
+      ],
+      "sentiment": "negative",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-08T05:00:31Z",
+      "headline": "Gemini Eyes Public Debut—Backed By Billionaire Winklevoss Twins: Report",
+      "url": "https://bitcoinist.com/gemini-eyes-ipo-backed-by-winklevoss-twins/",
+      "summary": "Gemini, a cryptocurrency exchange founded by the Winklevoss twins, is considering an initial public offering (IPO). This move could increase the exchange's visibility and legitimacy, potentially attracting more users and investors to the platform and the broader cryptocurrency market. The IPO could also provide Gemini with additional capital for expansion and innovation.",
+      "related_cryptocurrency": [
+        "BTC",
+        "ETH"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-08T05:00:24Z",
+      "headline": "Will profit-taking across WIF’s market stall rally led by whales, smart money?",
+      "url": "https://ambcrypto.com/will-profit-taking-across-wifs-market-stall-rally-led-by-whales-smart-money/",
+      "summary": "The article discusses potential profit-taking in WIF, which could stall its rally. Whales and spot traders have opposing views on the cryptocurrency's future, creating uncertainty.",
+      "related_cryptocurrency": [
+        "WIF"
+      ],
+      "sentiment": "negative",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-08T05:00:03Z",
+      "headline": "Just 10 Holders Control 61.3% Of Shiba Inu Supply: How This Compares With Other Altcoins",
+      "url": "http://www.newsbtc.com/shiba-inu/61-3-of-shiba-inu-supply-compares-other-altcoins/",
+      "summary": "The article discusses the concentration of Shiba Inu (SHIB) holdings, noting that a small number of wallets control a significant portion of the supply (61.3%). This raises concerns about potential market manipulation and volatility compared to other altcoins like Ethereum.",
+      "related_cryptocurrency": [
+        "Shiba Inu",
+        "ETH"
+      ],
+      "sentiment": "negative",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-08T05:00:00Z",
+      "headline": "Elon Musk is the name on all lips, on all placards",
+      "url": "https://www.irishtimes.com/world/us/2025/02/08/elon-musk-is-the-name-on-all-lips-on-all-placards/",
+      "summary": "This news article expresses concern that Elon Musk's actions and perceived disregard for the US federal system could have negative implications. While the title mentions Elon Musk, the description doesn't directly relate to cryptocurrency, suggesting a low market impact potential for crypto. The sentiment is negative due to the expressed fear and concern.",
+      "related_cryptocurrency": [],
+      "sentiment": "negative",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-08T04:40:54Z",
+      "headline": "The Bull Run, Memecoins and the Future of Crypto",
+      "url": "https://dailyhodl.com/2025/02/07/the-bull-run-memecoins-and-the-future-of-crypto/",
+      "summary": "The article discusses the current bull run in the cryptocurrency market, highlighting the emergence of Bitcoin ETFs as a distinguishing factor from previous cycles. It also mentions the role of memecoins in the current market.",
+      "related_cryptocurrency": [
+        "Bitcoin"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-08T04:40:01Z",
+      "headline": "Nikkei: Japan's financial regulator asks Apple and Google to remove apps from Bybit, MEXC Global, LBank Exchange, KuCoin, and Bitget; Apple has removed the apps (James Hunt/The Block)",
+      "url": "https://www.techmeme.com/250207/p38",
+      "summary": "Japan's financial regulator has requested Apple and Google to remove the apps of several cryptocurrency exchanges, including Bybit, MEXC Global, LBank Exchange, KuCoin, and Bitget, from their app stores. Apple has already complied with the request. This action signals increased regulatory scrutiny in Japan and could impact the accessibility and usage of these exchanges for Japanese users.",
+      "related_cryptocurrency": [],
+      "sentiment": "negative",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-08T04:13:04Z",
+      "headline": "Is the Labor Market Too Strong for Rate Cuts?",
+      "url": "https://biztoc.com/x/a6e640ae79281115",
+      "summary": "The article discusses the strength of the labor market and its potential impact on interest rate cuts. It also mentions a bullish outlook for Bitcoin, predicting it could reach $120,000. The overall sentiment towards Bitcoin is positive, although the article also touches on broader economic factors.",
+      "related_cryptocurrency": [
+        "Bitcoin"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-08T04:03:42Z",
+      "headline": "Wall St slides, Treasury yields rise on mixed data, renewed tariff threats",
+      "url": "https://economictimes.indiatimes.com/markets/stocks/news/wall-st-slides-treasury-yields-rise-on-mixed-data-renewed-tariff-threats/articleshow/118050344.cms",
+      "summary": "The news discusses a decline in Wall Street due to mixed economic data and renewed tariff threats. While not directly related to cryptocurrency, negative sentiment in traditional markets can sometimes indirectly affect the crypto market, though the impact is likely low in this case.",
+      "related_cryptocurrency": [],
+      "sentiment": "negative",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-08T04:01:00Z",
+      "headline": "Don’t Wait for $3,000 To Buy Gold",
+      "url": "https://www.lewrockwell.com/2025/02/no_author/dont-wait-for-3000-to-buy-gold/",
+      "summary": "The article discusses Peter's YouTube livestream about gold's price action, arguing that mainstream media and retail investors underestimate its potential. It suggests not waiting for a price drop to $3,000 to buy gold.",
+      "related_cryptocurrency": [],
+      "sentiment": "positive",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-08T03:30:27Z",
+      "headline": "Crypto Analyst Says Dogecoin Price Could Reach $20 This Cycle With Over 306x Surge",
+      "url": "https://bitcoinist.com/dogecoin-price-could-reach-20/",
+      "summary": "Crypto analyst Javon Marks predicts Dogecoin could reach $20 this cycle, representing a potential 306x surge, based on technical analysis showing impressive exponential growth.",
+      "related_cryptocurrency": [
+        "Dogecoin"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-08T03:30:14Z",
+      "headline": "Bitcoin Sees Largest Exchange Withdrawals Since FTX Collapse—What’s Next?",
+      "url": "http://www.newsbtc.com/bitcoin-news/bitcoin-sees-largest-exchange-withdrawals-since-ftx-collapse-whats-next/",
+      "summary": "Bitcoin is experiencing significant exchange withdrawals, the largest since the FTX collapse, and its price has declined by approximately 6.5% over the past week, failing to reclaim the $100,000 level.",
+      "related_cryptocurrency": [
+        "Bitcoin"
+      ],
+      "sentiment": "negative",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-08T02:10:20Z",
+      "headline": "Intelligent leveraging, intelligent de-leveraging?",
+      "url": "https://erickimphotography.com/blog/2025/02/07/intelligent-leveraging-intelligent-de-leveraging/",
+      "summary": "The article discusses the potential for high returns and Sharpe ratios through intelligent leveraging and de-leveraging in the crypto market, comparing returns to Bitcoin and MSTR (MicroStrategy). It suggests a 'Brave new world' for crypto assets, implying a positive outlook despite the risks associated with leverage.",
+      "related_cryptocurrency": [
+        "BTC"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-08T02:00:35Z",
+      "headline": "Bitcoin Dominance 2021 Vs. 2025: Why Striking Similarities May Show If An Altcoin Season Is Possible",
+      "url": "http://www.newsbtc.com/news/bitcoin/bitcoin-dominance-2021-vs-2025/",
+      "summary": "The article discusses the potential for an upcoming altcoin season by comparing Bitcoin dominance patterns in 2021 and 2025. It suggests that similarities between the two cycles could indicate whether altcoins are about to experience a bull run.",
+      "related_cryptocurrency": [
+        "Bitcoin",
+        "Altcoins"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-08T02:00:02Z",
+      "headline": "BONK’s latest rebound – All about the memecoin’s latest price targets",
+      "url": "https://ambcrypto.com/bonks-latest-rebound-all-about-the-memecoins-latest-price-targets/",
+      "summary": "This article discusses the potential price movement of BONK, a memecoin. While the direction is uncertain, the focus on 'rebound' and 'price targets' suggests a potentially positive outlook, though the overall impact is likely low given the nature of memecoins.",
+      "related_cryptocurrency": [
+        "BONK"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-08T01:41:01Z",
+      "headline": "Process to get money back after ‘digital arrest’ can be grinding",
+      "url": "https://timesofindia.indiatimes.com/city/kolkata/process-to-get-money-back-after-digital-arrest-can-be-grinding/articleshow/118045597.cms",
+      "summary": "The article discusses the difficulties victims face in recovering money lost due to 'digital arrest' fraud, highlighting the lengthy process and the importance of swift action and evidence preservation. While not directly related to a specific cryptocurrency, it touches on the broader issue of fraud within the digital financial space, which can indirectly affect crypto users.",
+      "related_cryptocurrency": [],
+      "sentiment": "negative",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-08T01:04:59Z",
+      "headline": "Traders Pour $6,500,000,000 Into Group of Assets in Just One Week – Here’s Where the Capital Is Going",
+      "url": "https://dailyhodl.com/2025/02/07/traders-pour-6500000000-into-group-of-assets-in-just-one-week-heres-where-the-trove-of-capital-is-going/",
+      "summary": "The article discusses a large influx of capital into equity funds, driven by retail investors. While the title might suggest a crypto focus, the description indicates the investment is primarily in equity funds, potentially triggered by concerns over a Chinese AI app. Therefore, the direct impact on the crypto market is likely low, but the overall positive sentiment in the market could indirectly benefit crypto.",
+      "related_cryptocurrency": [],
+      "sentiment": "positive",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-08T01:04:38Z",
+      "headline": "Kanye West, after disclosing he was offered $2 million to launch a token, asks to speak with Coinbase CEO ‘concerning crypto’",
+      "url": "https://biztoc.com/x/4276b8fee491e81c",
+      "summary": "Kanye West revealed he was offered $2 million to launch a crypto token and expressed interest in speaking with Coinbase's CEO, potentially signaling a future involvement in the crypto space. However, there is no confirmation that he will launch a token.",
+      "related_cryptocurrency": [],
+      "sentiment": "positive",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-08T01:00:56Z",
+      "headline": "Crypto Exchange Giant Bybit Shells Out $1,000,000 Penalty to Regulators To Resume Operations in India",
+      "url": "https://dailyhodl.com/2025/02/07/crypto-exchange-giant-bybit-shells-out-1000000-penalty-to-regulators-to-resume-operations-in-india/",
+      "summary": "Bybit, a major crypto exchange, is re-entering the Indian market after paying a $1 million penalty to regulators and securing mandatory registration. This suggests a more regulated environment for crypto in India and Bybit's commitment to compliance, which could positively influence market sentiment.",
+      "related_cryptocurrency": [],
+      "sentiment": "positive",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-08T00:30:15Z",
+      "headline": "Bitcoin Volatility Persists, But Retail Sentiment Is On The Rise, A Rebound Imminent?",
+      "url": "https://bitcoinist.com/bitcoin-retail-sentiment-rise/",
+      "summary": "Bitcoin's price is struggling after a recent drop, influenced by a general bearish crypto market. However, rising retail investor sentiment suggests a potential rebound towards the $100,000 mark.",
+      "related_cryptocurrency": [
+        "Bitcoin"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-08T00:30:07Z",
+      "headline": "Is Dogecoin Massively Undervalued? Analyst Says ‘Now Is The Time’",
+      "url": "http://www.newsbtc.com/news/dogecoin/dogecoin-undervalued-analyst-now-is-the-time/",
+      "summary": "An analyst suggests Dogecoin is heavily undervalued, indicating a potentially opportune time for investment.",
+      "related_cryptocurrency": [
+        "Dogecoin"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-08T00:20:41Z",
+      "headline": "Trump’s tariffs explained simply for idiots and fools",
+      "url": "https://www.wnd.com/2025/02/trumps-tariffs-explained-simply-for-idiots-and-fools/",
+      "summary": "The article uses inflammatory language and focuses on political commentary rather than cryptocurrency, suggesting a low impact on the crypto market. The negative sentiment stems from the divisive tone and lack of substantive information.",
+      "related_cryptocurrency": [],
+      "sentiment": "negative",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-08T00:00:48Z",
+      "headline": "Assessing if Bitcoin miners are close to capitulation or not",
+      "url": "https://ambcrypto.com/assessing-if-bitcoin-miners-are-close-to-capitulation-or-not/",
+      "summary": "The news suggests that Bitcoin miners are facing financial difficulties due to low profitability, potentially leading to miner capitulation, which could negatively impact the Bitcoin network.",
+      "related_cryptocurrency": [
+        "Bitcoin"
+      ],
+      "sentiment": "negative",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-08T00:00:40Z",
+      "headline": "The 24-Year-Old Realtor Who Meets a Couple at a Sauna",
+      "url": "http://www.thecut.com/article/new-sex-diaries-story-woman-meets-couple-sauna.html",
+      "summary": "This article is about a sex diary and does not relate to cryptocurrency. It has no impact on the crypto market.",
+      "related_cryptocurrency": [],
+      "sentiment": "negative",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-08T00:00:06Z",
+      "headline": "Maple reports no increase in bad debt, $10M inflows amid recent market crash",
+      "url": "https://cryptoslate.com/maple-reports-no-increase-in-bad-debt-10m-inflows-amid-recent-market-crash/",
+      "summary": "Maple Finance reported no increase in bad debt and $10M inflows during the recent market crash, indicating resilience and user confidence in the platform.",
+      "related_cryptocurrency": [
+        "MAPLE"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-08T00:00:00Z",
+      "headline": "Overview of Content Published in January",
+      "url": "https://blog.didierstevens.com/2025/02/08/overview-of-content-published-in-january-9/",
+      "summary": "The news article discusses a crypto wallet scam, which is a negative event. It also mentions other topics like Wireshark and ZIP files, but the crypto wallet scam is the most relevant aspect for analysis.",
+      "related_cryptocurrency": [],
+      "sentiment": "negative",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-07T23:19:57Z",
+      "headline": "Kentucky and Maryland Are the Latest States to Consider Bitcoin Reserve Bills",
+      "url": "https://decrypt.co/305098/kentucky-maryland-latest-states-bitcoin-reserve",
+      "summary": "Kentucky and Maryland are considering Bitcoin reserve bills, indicating growing acceptance of Bitcoin as a store of value at the state level. This could lead to increased demand and potentially higher prices for Bitcoin in the long term, although the immediate impact is likely to be small.",
+      "related_cryptocurrency": [
+        "bitcoin"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-07T23:01:18Z",
+      "headline": "Coinbase Crosses $420,000,000,000 in Assets As CEO Brian Armstrong Ranks Crypto Exchange Among Top US Banks",
+      "url": "https://dailyhodl.com/2025/02/07/coinbase-crosses-420000000000-in-assets-as-ceo-brian-armstrong-ranks-crypto-exchange-among-top-us-banks/",
+      "summary": "Coinbase's CEO, Brian Armstrong, highlights the exchange's significant asset holdings, comparing it to top US banks. This news suggests growing legitimacy and mainstream acceptance of cryptocurrency exchanges, potentially attracting more users and investment.",
+      "related_cryptocurrency": [
+        "BTC",
+        "ETH"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-07T23:00:48Z",
+      "headline": "Solana ETF: SEC opens 21-day review period – What’s next?",
+      "url": "https://ambcrypto.com/solana-etf-sec-opens-21-day-review-period-whats-next/",
+      "summary": "The SEC has initiated a 21-day review period for a proposed Solana ETF, following the successful launches of Bitcoin and Ethereum ETFs. This development suggests a potential expansion of cryptocurrency investment products and could positively impact Solana's market value.",
+      "related_cryptocurrency": [
+        "Solana"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-07T23:00:41Z",
+      "headline": "Ethereum Is Consolidating After The Flush Last Weekend – The Calm Before A Big Move?",
+      "url": "http://www.newsbtc.com/news/ethereum/ethereum-is-consolidating-after-the-flush-last-weekend-the-calm-before-a-big-move/",
+      "summary": "Ethereum experienced a significant price drop, raising concerns about potential future volatility.",
+      "related_cryptocurrency": [
+        "Ethereum"
+      ],
+      "sentiment": "negative",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-07T23:00:36Z",
+      "headline": "Ripple Vs. SEC Lawsuit: XRP Price Balks At The Latest Developments",
+      "url": "https://bitcoinist.com/xrp-balks-in-ripple-lawsuit/",
+      "summary": "The Ripple vs. SEC lawsuit may be nearing its end, but XRP's price has not reacted positively, experiencing a significant crash instead.",
+      "related_cryptocurrency": [
+        "XRP"
+      ],
+      "sentiment": "negative",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-07T23:00:24Z",
+      "headline": "Public Citizen calls for DOJ probe into Trump’s memecoin promotion",
+      "url": "https://cryptoslate.com/public-citizen-calls-for-doj-probe-into-trumps-memecoin-promotion/",
+      "summary": "Public Citizen is requesting a DOJ investigation into Trump's promotion of a memecoin, alleging potential violation of federal laws regarding solicitation of gifts by government officials. This news could negatively impact the reputation and perceived legitimacy of memecoins associated with political figures.",
+      "related_cryptocurrency": [
+        "TrumpCoin",
+        "Memecoin"
+      ],
+      "sentiment": "negative",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-07T23:00:00Z",
+      "headline": "U.S. Senate’s Effort on Stablecoins Revealed in New Bill from Hagerty",
+      "url": "https://www.activistpost.com/u-s-senates-effort-on-stablecoins-revealed-in-new-bill-from-hagerty/",
+      "summary": "A new stablecoin bill is being introduced in the U.S. Senate by Senator Hagerty, signaling a renewed effort to regulate stablecoins. The Republican leadership in the Senate is aiming to pass this bill, marking an initial step in the new Congress's approach to crypto regulation.",
+      "related_cryptocurrency": [
+        "stablecoins"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-07T22:52:25Z",
+      "headline": "Trump wants a deal for Ukraine’s natural resources as ‘payback’ in exchange for aid stopping Russia attack: envoy",
+      "url": "https://freerepublic.com/focus/f-chat/4295846/posts",
+      "summary": "This news article discusses Trump's alleged interest in securing Ukraine's natural resources as 'payback' for US aid in stopping Russia's attack. It does not directly relate to cryptocurrency markets, but the geopolitical implications could indirectly influence broader market sentiment. The negative sentiment stems from the controversial nature of the alleged proposal.",
+      "related_cryptocurrency": [],
+      "sentiment": "negative",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-07T22:46:24Z",
+      "headline": "The Utter Bliss—and Impending Angst—of Donald Trump’s Palm Beach",
+      "url": "https://www.vanityfair.com/style/story/donald-trump-palm-beach-true-colors",
+      "summary": "The article discusses the social dynamics in Palm Beach, Florida, focusing on the influx of new residents and their impact on the established community, particularly around Mar-a-Lago. It does not directly relate to cryptocurrency markets, but the mention of 'chaotic' elements could be interpreted negatively, though its impact is minimal.",
+      "related_cryptocurrency": [],
+      "sentiment": "negative",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-07T22:46:00Z",
+      "headline": "Warning Issued For Millions Of iPhone And Android Users Over Screenshot-Scanning Malware",
+      "url": "https://hothardware.com/news/iphone-and-android-screenshot-scanning-malware",
+      "summary": "A warning has been issued to millions of iPhone and Android users about screenshot-scanning malware that can be hidden within apps found on official sources like the iOS App Store and Google Play Store. This malware poses a security risk to users' devices and data.",
+      "related_cryptocurrency": [],
+      "sentiment": "negative",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-07T22:25:00Z",
+      "headline": "The Elite Lawyers Working for Elon Musk’s DOGE Include Former Supreme Court Clerks",
+      "url": "https://www.propublica.org/article/elon-musk-doge-lawyers-supreme-court",
+      "summary": "The article discusses the lawyers working for Elon Musk in relation to DOGE, noting that they include former Supreme Court clerks. This association with high-profile legal professionals could be perceived positively, but the actual impact on the cryptocurrency's market is likely low.",
+      "related_cryptocurrency": [
+        "DOGE"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-07T22:24:00Z",
+      "headline": "Thaksin to work on crypto plan",
+      "url": "https://www.bangkokpost.com/business/general/2956503/thaksin-to-work-on-crypto-plan",
+      "summary": "Former Thai Prime Minister Thaksin Shinawatra will propose a cryptocurrency adoption plan for ASEAN, potentially signaling a future interest in digital currencies within the region.",
+      "related_cryptocurrency": [],
+      "sentiment": "positive",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-07T22:24:00Z",
+      "headline": "Thaksin to work on crypto plan",
+      "url": "https://www.bangkokpost.com/thailand/general/2956503/thaksin-to-work-on-crypto-plan",
+      "summary": "Thaksin Shinawatra is developing a cryptocurrency adoption proposal for ASEAN, potentially signaling increased regional interest and acceptance of cryptocurrencies.",
+      "related_cryptocurrency": [
+        "unspecified"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-07T22:21:37Z",
+      "headline": "Telegram Game 'TapSwap' Dumps TON for BNB Chain Ahead of Airdrop",
+      "url": "https://decrypt.co/305087/telegram-game-tapswap-bnb-chain-airdrop",
+      "summary": "TapSwap, a Telegram game, has decided to launch its TAPS token on the BNB Chain instead of The Open Network (TON), despite a prior exclusivity agreement with Telegram. This decision could negatively impact TON's perceived value and adoption within the Telegram ecosystem, while potentially benefiting BNB Chain.",
+      "related_cryptocurrency": [
+        "TON",
+        "BNB"
+      ],
+      "sentiment": "negative",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-07T22:21:00Z",
+      "headline": "Tidal Trust II Announces Name Change of STKD Bitcoin & Gold ETF",
+      "url": "https://www.globenewswire.com/news-release/2025/02/07/3023036/0/en/Tidal-Trust-II-Announces-Name-Change-of-STKD-Bitcoin-Gold-ETF.html",
+      "summary": "Tidal Trust II is changing the name of its STKD Bitcoin & Gold ETF. Name changes themselves don't typically have a large impact unless they signal a fundamental shift in strategy or reflect poorly on the fund's performance or brand. The sentiment is slightly negative as name changes can sometimes indicate underlying issues or rebranding efforts due to poor performance.",
+      "related_cryptocurrency": [
+        "Bitcoin"
+      ],
+      "sentiment": "negative",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-07T22:17:49Z",
+      "headline": "Florida senator files bill to allow state to invest in bitcoin",
+      "url": "https://biztoc.com/x/b577647fed6cf703",
+      "summary": "A Florida senator has proposed a bill that would allow the state's CFO to invest public funds in Bitcoin and other digital assets. This could lead to increased adoption and legitimacy of Bitcoin, potentially driving up its price.",
+      "related_cryptocurrency": [
+        "bitcoin"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-07T22:12:39Z",
+      "headline": "Proptech reAlpha names Vijay Rathna chief crypto officer",
+      "url": "https://www.inman.com/2025/02/07/proptech-realpha-names-vijay-rathna-chief-crypto-officer/",
+      "summary": "reAlpha, a real estate software company, has appointed Vijay Rathna as its Chief Crypto Officer. Rathna will be responsible for implementing token strategy, leading blockchain integrations, and driving digital asset innovation within the company. This signals reAlpha's increased focus on incorporating blockchain technology and digital assets into its real estate operations.",
+      "related_cryptocurrency": [],
+      "sentiment": "positive",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-07T22:12:00Z",
+      "headline": "Vixichain’s DevNet goes live to provide banks secure and compliant access to DeFi",
+      "url": "https://www.globenewswire.com/news-release/2025/02/07/3023034/0/en/Vixichain-s-DevNet-goes-live-to-provide-banks-secure-and-compliant-access-to-DeFi.html",
+      "summary": "Vixichain's DevNet launch aims to provide banks with secure access to DeFi, complemented by a web-based Web3 Wallet for user-friendly onboarding and secure token transactions.",
+      "related_cryptocurrency": [
+        "Vixichain"
+      ],
+      "sentiment": "positive",
+      "market_impact_potential": "low"
+    },
+    {
+      "time": "2025-02-07T22:00:22Z",
+      "headline": "SEC seeks more time to deliberate on options for Ethereum ETFs, extends review to April 9",
+      "url": "https://cryptoslate.com/sec-seeks-more-time-to-deliberate-on-options-for-ethereum-etfs-extends-review-to-april-9/",
+      "summary": "The SEC has delayed its decision on approving options trading on Ethereum ETFs until April 9, indicating continued regulatory uncertainty which could negatively impact market sentiment.",
+      "related_cryptocurrency": [
+        "ETH"
+      ],
+      "sentiment": "negative",
+      "market_impact_potential": "medium"
+    },
+    {
+      "time": "2025-02-07T22:00:17Z",
+      "headline": "When will crypto go back up? Look out for these market trends, key indicators!",
+      "url": "https://ambcrypto.com/when-will-crypto-go-back-up-look-out-for-these-market-trends-key-indicators/",
+      "summary": "The cryptocurrency market is experiencing uncertainty, with Bitcoin showing stability while Ethereum faces challenges. The article suggests monitoring market trends and key indicators to predict when the market will recover.",
+      "related_cryptocurrency": [
+        "Bitcoin",
+        "Ethereum"
+      ],
+      "sentiment": "negative",
+      "market_impact_potential": "medium"
+    }
+  ]
+}
