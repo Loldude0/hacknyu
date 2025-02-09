@@ -8,6 +8,7 @@ import Trading from "../components/Trading";
 import TaxCalculator from "../components/TaxCalculator";
 import Navbar from "../components/Navbar";
 import Portfolio from "../components/Portfolio";
+import SmartContractSetup from "../components/SmartContractSetup";
 
 const Dashboard = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,6 +22,8 @@ const Dashboard = () => {
   };
 
   const [activeTab, setActiveTab] = useState(getActiveTab());
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [walletAddress, setWalletAddress] = useState("");
 
   // Update active tab and navigate
   const handleTabChange = (tab) => {
@@ -33,7 +36,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="relative min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Sidebar - hidden on mobile */}
       <div className="hidden md:block">
         <Sidebar activeTab={activeTab} setActiveTab={handleTabChange} />
@@ -86,6 +89,15 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Modal positioned relative to viewport */}
+      {isModalOpen && (
+        <SmartContractSetup
+          walletAddress={walletAddress}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+        />
+      )}
     </div>
   );
 };
