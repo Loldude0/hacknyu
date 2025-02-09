@@ -12,6 +12,10 @@ import {
 import transactionData from "/src/data/transactions_20250208_222941.json";
 import tokenMetadata from "/src/data/token_metadata.json";
 import axios from "axios";
+import fs from 'fs';
+import path from 'path';
+
+const CACHE_FILE_PATH = path.join(process.cwd(), 'price-cache.json');
 
 // CoinGecko API base URL
 const COINGECKO_API_BASE = "/api/coingecko/";

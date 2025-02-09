@@ -1,0 +1,9 @@
+[package]
+name = "user-preferences-client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+   anchor-client = "0.28.0"
+   anyhow = "1.0"
+   anchor-lang = "0.28.0"
