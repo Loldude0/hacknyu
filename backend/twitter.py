@@ -79,12 +79,10 @@ async def setup_twitter():
     # Get credentials from environment variables
     username = os.getenv("TWITTER_USERNAME")
     password = os.getenv("TWITTER_PASSWORD")
-    email = os.getenv("TWITTER_EMAIL")
-    email_password = os.getenv("TWITTER_EMAIL_PASSWORD")
     
     # Add account to the pool
     try:
-        await pool.add_account(username, password, email, email_password)
+        await pool.add_account(username, password)
         print("Account added successfully!")
         
         # Login to all accounts
