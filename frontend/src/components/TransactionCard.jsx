@@ -6,6 +6,9 @@ import {
   CaretDown,
   ChatCircleText,
   X,
+  Copy,
+  ArrowSquareOut,
+  ArrowRight,
 } from "@phosphor-icons/react";
 
 const StatusIcon = ({ status }) => {
@@ -24,6 +27,7 @@ const StatusIcon = ({ status }) => {
 const TransactionCard = ({ transaction }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [showFullHash, setShowFullHash] = useState(false);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -38,6 +42,179 @@ const TransactionCard = ({ transaction }) => {
     }
   };
 
+  const formatHash = (hash) => {
+    if (showFullHash) return hash;
+    return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    // You could add a toast notification here
+  };
+
+  const openInSolscan = (hash) => {
+    window.open(`https://solscan.io/tx/${hash}`, "_blank");
+  };
+
+  // Format the transaction amount display
+  const formatTransactionDisplay = () => {
+    if (!transaction) return null;
+
+    if (transaction.type === "swap" && transaction.tokenChanges) {
+      const { pre, post } = transaction.tokenChanges;
+
+      // Find tokens that decreased (source) and increased (destination) in value
+      const sourceTokens = pre.filter((preToken) => {
+        const postToken = post.find((p) => p.mint === preToken.mint);
+        return postToken && postToken.amount < preToken.amount;
+      });
+
+      const destinationTokens = post.filter((postToken) => {
+        const preToken = pre.find((p) => p.mint === postToken.mint);
+        return !preToken || postToken.amount > (preToken?.amount || 0);
+      });
+
+      // For the main display, only show first source and last destination
+      const firstSource = sourceTokens[0];
+      const lastDestination = destinationTokens[destinationTokens.length - 1];
+
+      return (
+        <div className="flex items-center space-x-2">
+          {/* First Source Token */}
+          <div className="flex items-center space-x-1">
+            {firstSource && (
+              <div className="flex items-center space-x-1">
+                {firstSource.tokenInfo?.logoURI && (
+                  <img
+                    src={firstSource.tokenInfo.logoURI}
+                    alt={firstSource.tokenInfo?.symbol || "Token"}
+                    className="w-4 h-4 rounded-full"
+                  />
+                )}
+                <span className="text-sm font-medium">
+                  {Math.abs(
+                    firstSource.amount -
+                      (post.find((p) => p.mint === firstSource.mint)?.amount ||
+                        0)
+                  ).toFixed(4)}{" "}
+                  {firstSource.tokenInfo?.symbol || "Token"}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <ArrowRight size={16} className="text-gray-400" />
+
+          {/* Last Destination Token */}
+          <div className="flex items-center space-x-1">
+            {lastDestination && (
+              <div className="flex items-center space-x-1">
+                {lastDestination.tokenInfo?.logoURI && (
+                  <img
+                    src={lastDestination.tokenInfo.logoURI}
+                    alt={lastDestination.tokenInfo?.symbol || "Token"}
+                    className="w-4 h-4 rounded-full"
+                  />
+                )}
+                <span className="text-sm font-medium">
+                  {Math.abs(
+                    lastDestination.amount -
+                      (pre.find((p) => p.mint === lastDestination.mint)
+                        ?.amount || 0)
+                  ).toFixed(4)}{" "}
+                  {lastDestination.tokenInfo?.symbol || "Token"}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    } else {
+      // For regular transfers
+      return <span className="text-sm font-medium">{transaction.amount}</span>;
+    }
+  };
+
+  const renderFullTransactionChain = () => {
+    if (!transaction?.tokenChanges) return null;
+    const { pre, post } = transaction.tokenChanges;
+
+    const sourceTokens = pre.filter((preToken) => {
+      const postToken = post.find((p) => p.mint === preToken.mint);
+      return postToken && postToken.amount < preToken.amount;
+    });
+
+    const destinationTokens = post.filter((postToken) => {
+      const preToken = pre.find((p) => p.mint === postToken.mint);
+      return !preToken || postToken.amount > (preToken?.amount || 0);
+    });
+
+    return (
+      <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
+        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+          Transaction Chain
+        </h4>
+        <div className="space-y-2">
+          {sourceTokens.map((token, index) => {
+            const nextToken =
+              destinationTokens[index] ||
+              destinationTokens[destinationTokens.length - 1];
+            return (
+              <div key={token.mint} className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1">
+                  {token.tokenInfo?.logoURI && (
+                    <img
+                      src={token.tokenInfo.logoURI}
+                      alt={token.tokenInfo?.symbol || "Token"}
+                      className="w-4 h-4 rounded-full"
+                    />
+                  )}
+                  <span className="text-sm">
+                    {Math.abs(
+                      token.amount -
+                        (post.find((p) => p.mint === token.mint)?.amount || 0)
+                    ).toFixed(4)}{" "}
+                    {token.tokenInfo?.symbol || "Token"}
+                    {token.tokenInfo?.name && (
+                      <span className="text-xs text-gray-500">
+                        {" "}
+                        ({token.tokenInfo.name})
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <ArrowRight size={16} className="text-gray-400" />
+                <div className="flex items-center space-x-1">
+                  {nextToken.tokenInfo?.logoURI && (
+                    <img
+                      src={nextToken.tokenInfo.logoURI}
+                      alt={nextToken.tokenInfo?.symbol || "Token"}
+                      className="w-4 h-4 rounded-full"
+                    />
+                  )}
+                  <span className="text-sm">
+                    {Math.abs(
+                      nextToken.amount -
+                        (pre.find((p) => p.mint === nextToken.mint)?.amount ||
+                          0)
+                    ).toFixed(4)}{" "}
+                    {nextToken.tokenInfo?.symbol || "Token"}
+                    {nextToken.tokenInfo?.name && (
+                      <span className="text-xs text-gray-500">
+                        {" "}
+                        ({nextToken.tokenInfo.name})
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-md">
       <div
@@ -48,7 +225,34 @@ const TransactionCard = ({ transaction }) => {
           <StatusIcon status={transaction.status} />
           <div>
             <div className="flex items-center space-x-2">
-              <p className="text-sm font-medium">{transaction.txHash}</p>
+              <div className="group relative">
+                <div
+                  className="flex items-center space-x-2 text-sm font-medium cursor-pointer hover:text-purple-500"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openInSolscan(transaction.txHash);
+                  }}
+                  onMouseEnter={() => setShowFullHash(true)}
+                  onMouseLeave={() => setShowFullHash(false)}
+                >
+                  <span>{formatHash(transaction.txHash)}</span>
+                  <ArrowSquareOut
+                    size={14}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  />
+                </div>
+                <div className="absolute right-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      copyToClipboard(transaction.txHash);
+                    }}
+                    className="p-1 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-purple-500"
+                  >
+                    <Copy size={14} />
+                  </button>
+                </div>
+              </div>
               <span
                 className={`text-xs px-2 py-1 rounded-full border ${getStatusColor(
                   transaction.status
@@ -63,7 +267,7 @@ const TransactionCard = ({ transaction }) => {
           </div>
         </div>
         <div className="flex items-center space-x-4">
-          <span className="text-sm font-medium">{transaction.amount}</span>
+          {formatTransactionDisplay()}
           <CaretDown
             size={16}
             className={`transform transition-transform duration-300 ${
@@ -88,6 +292,7 @@ const TransactionCard = ({ transaction }) => {
               <span className="text-gray-500">Fee</span>
               <span>{transaction.fee}</span>
             </div>
+            {renderFullTransactionChain()}
             <button
               onClick={(e) => {
                 e.stopPropagation();

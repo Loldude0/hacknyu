@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { List } from "@phosphor-icons/react";
-import Sidebar, { menuItems } from "../components/Sidebar";
-import TransactionHistory from "../components/TransactionHistory";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import Sidebar from "../components/Sidebar";
 import NewsAndInsights from "../components/NewsAndInsights";
 import Payments from "../components/Payments";
 import Trading from "../components/Trading";
@@ -11,13 +11,32 @@ import Portfolio from "../components/Portfolio";
 
 const Dashboard = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("portfolio");
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Extract the active tab from the current path
+  const getActiveTab = () => {
+    const path = location.pathname.split("/")[2] || "portfolio";
+    return path;
+  };
+
+  const [activeTab, setActiveTab] = useState(getActiveTab());
+
+  // Update active tab and navigate
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (tab === "history") {
+      navigate("/dashboard/history");
+    } else {
+      navigate("/dashboard");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Sidebar - hidden on mobile */}
       <div className="hidden md:block">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <Sidebar activeTab={activeTab} setActiveTab={handleTabChange} />
       </div>
 
       {/* Mobile nav */}
@@ -41,7 +60,7 @@ const Dashboard = () => {
             <Sidebar
               onClose={() => setIsOpen(false)}
               activeTab={activeTab}
-              setActiveTab={setActiveTab}
+              setActiveTab={handleTabChange}
             />
           </div>
         </div>
@@ -50,18 +69,21 @@ const Dashboard = () => {
       {/* Main Content */}
       <div className="md:ml-64">
         {/* Navbar */}
-        <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <Navbar activeTab={activeTab} setActiveTab={handleTabChange} />
 
         {/* Content */}
         <div className="p-8">
-          {activeTab === "portfolio" && (
-            <Portfolio setActiveTab={setActiveTab} />
+          {location.pathname === "/dashboard/history" ? (
+            <Outlet />
+          ) : (
+            <>
+              {activeTab === "portfolio" && <Portfolio />}
+              {activeTab === "trading" && <Trading />}
+              {activeTab === "news" && <NewsAndInsights />}
+              {activeTab === "payments" && <Payments />}
+              {activeTab === "tax" && <TaxCalculator />}
+            </>
           )}
-          {activeTab === "trading" && <Trading />}
-          {activeTab === "news" && <NewsAndInsights />}
-          {activeTab === "payments" && <Payments />}
-          {activeTab === "tax" && <TaxCalculator />}
-          {activeTab === "history" && <TransactionHistory />}
         </div>
       </div>
     </div>
