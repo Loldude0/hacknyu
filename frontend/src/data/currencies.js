@@ -1,0 +1,92 @@
+export const currencies = [
+  {
+    symbol: "USD",
+    name: "US Dollar",
+    icon: "🇺🇸",
+    code: "USD",
+  },
+  {
+    symbol: "EUR",
+    name: "Euro",
+    icon: "🇪🇺",
+    code: "EUR",
+  },
+  {
+    symbol: "GBP",
+    name: "British Pound",
+    icon: "🇬🇧",
+    code: "GBP",
+  },
+  {
+    symbol: "JPY",
+    name: "Japanese Yen",
+    icon: "🇯🇵",
+    code: "JPY",
+  },
+  {
+    symbol: "INR",
+    name: "Indian Rupee",
+    icon: "🇮🇳",
+    code: "INR",
+  },
+  {
+    symbol: "AUD",
+    name: "Australian Dollar",
+    icon: "🇦🇺",
+    code: "AUD",
+  },
+  {
+    symbol: "CAD",
+    name: "Canadian Dollar",
+    icon: "🇨🇦",
+    code: "CAD",
+  },
+  {
+    symbol: "CHF",
+    name: "Swiss Franc",
+    icon: "🇨🇭",
+    code: "CHF",
+  },
+  {
+    symbol: "CNY",
+    name: "Chinese Yuan",
+    icon: "🇨🇳",
+    code: "CNY",
+  },
+  {
+    symbol: "NZD",
+    name: "New Zealand Dollar",
+    icon: "🇳🇿",
+    code: "NZD",
+  },
+  {
+    symbol: "SGD",
+    name: "Singapore Dollar",
+    icon: "🇸🇬",
+    code: "SGD",
+  },
+  {
+    symbol: "HKD",
+    name: "Hong Kong Dollar",
+    icon: "🇭🇰",
+    code: "HKD",
+  },
+  {
+    symbol: "SEK",
+    name: "Swedish Krona",
+    icon: "🇸🇪",
+    code: "SEK",
+  },
+  {
+    symbol: "KRW",
+    name: "South Korean Won",
+    icon: "🇰🇷",
+    code: "KRW",
+  },
+  {
+    symbol: "AED",
+    name: "UAE Dirham",
+    icon: "🇦🇪",
+    code: "AED",
+  },
+];
