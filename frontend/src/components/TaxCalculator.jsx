@@ -18,14 +18,33 @@ const COINGECKO_API_BASE = "/api/coingecko/";
 
 // Token mapping for CoinGecko IDs
 const COINGECKO_TOKEN_MAP = {
-  "So11111111111111111111111111111111111111112": "solana", // SOL
-  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "usd-coin", // USDC
-  "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB": "usd-coin", // USDT
+  So11111111111111111111111111111111111111112: "solana", // SOL
+  EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: "usd-coin", // USDC
+  Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB: "usd-coin", // USDT
   // Add more token mappings as needed
 };
 
-// Price cache to avoid redundant API calls
-const priceCache = new Map();
+// Load cache from localStorage
+let priceCache = new Map();
+try {
+  const cachedData = localStorage.getItem("priceCache");
+  if (cachedData) {
+    const cacheData = JSON.parse(cachedData);
+    priceCache = new Map(Object.entries(cacheData));
+  }
+} catch (error) {
+  console.error("Error loading price cache:", error);
+}
+
+// Function to save cache to localStorage
+const savePriceCache = () => {
+  try {
+    const cacheObject = Object.fromEntries(priceCache);
+    localStorage.setItem("priceCache", JSON.stringify(cacheObject));
+  } catch (error) {
+    console.error("Error saving price cache:", error);
+  }
+};
 
 // Build tokenMap using local token metadata
 const tokenMap = new Map(
@@ -53,55 +72,92 @@ const TaxCalculator = () => {
   // Batch fetch historical prices for multiple dates and tokens
   const batchFetchHistoricalPrices = async (requests) => {
     const uniqueRequests = new Map();
-    
+
     // Deduplicate requests by date and token
     requests.forEach(({ coingeckoId, timestamp }) => {
-      const date = new Date(timestamp).toISOString().split('T')[0];
-      const key = `${coingeckoId}-${date}`;
-      
+      const date = new Date(timestamp);
+      const formattedDate = `${String(date.getDate()).padStart(
+        2,
+        "0"
+      )}-${String(date.getMonth() + 1).padStart(2, "0")}-${date.getFullYear()}`;
+      const key = `${coingeckoId}-${formattedDate}`;
+
       if (!priceCache.has(key)) {
-        uniqueRequests.set(key, { coingeckoId, date });
+        uniqueRequests.set(key, { coingeckoId, date: formattedDate });
       }
     });
 
-    // Process unique requests in batches of 10
-    const batchSize = 10;
+    // If all prices are cached, return immediately
+    if (uniqueRequests.size === 0) {
+      return requests.map(({ coingeckoId, timestamp }) => {
+        const date = new Date(timestamp);
+        const formattedDate = `${String(date.getDate()).padStart(
+          2,
+          "0"
+        )}-${String(date.getMonth() + 1).padStart(
+          2,
+          "0"
+        )}-${date.getFullYear()}`;
+        const key = `${coingeckoId}-${formattedDate}`;
+        return priceCache.get(key);
+      });
+    }
+
+    // Process unique requests in batches of 5
+    const batchSize = 5;
     const uniqueRequestsArray = Array.from(uniqueRequests.values());
     const results = new Map();
 
     for (let i = 0; i < uniqueRequestsArray.length; i += batchSize) {
       const batch = uniqueRequestsArray.slice(i, i + batchSize);
-      const promises = batch.map(async ({ coingeckoId, date }) => {
+
+      // Process each request in the batch sequentially
+      for (const { coingeckoId, date } of batch) {
         try {
+          // Add random delay between 1-2 seconds for each request
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 + Math.random() * 1000)
+          );
+
           const response = await axios.get(
             `${COINGECKO_API_BASE}/coins/${coingeckoId}/history`,
             {
               params: {
-                date,
+                date: date,
                 localization: false,
-              }
+              },
             }
           );
           const price = response.data.market_data?.current_price?.usd || null;
           const key = `${coingeckoId}-${date}`;
           priceCache.set(key, price);
           results.set(key, price);
-        } catch (error) {
-          console.error(`Error fetching price for ${coingeckoId} on ${date}:`, error);
-        }
-      });
 
-      await Promise.all(promises);
-      // Add a small delay between batches to respect rate limits
+          console.log(`Saved price for ${coingeckoId} on ${date}`);
+          savePriceCache();
+        } catch (error) {
+          console.error(
+            `Error fetching price for ${coingeckoId} on ${date}:`,
+            error
+          );
+        }
+      }
+
+      // Add 60-second delay between batches, but only if there are more batches to process
       if (i + batchSize < uniqueRequestsArray.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log("Waiting 60 seconds before processing next batch...");
+        await new Promise((resolve) => setTimeout(resolve, 60000));
       }
     }
 
     // Return prices for all requested combinations
     return requests.map(({ coingeckoId, timestamp }) => {
-      const date = new Date(timestamp).toISOString().split('T')[0];
-      const key = `${coingeckoId}-${date}`;
+      const date = new Date(timestamp);
+      const formattedDate = `${String(date.getDate()).padStart(
+        2,
+        "0"
+      )}-${String(date.getMonth() + 1).padStart(2, "0")}-${date.getFullYear()}`;
+      const key = `${coingeckoId}-${formattedDate}`;
       return priceCache.get(key);
     });
   };
@@ -109,15 +165,12 @@ const TaxCalculator = () => {
   // Fetch current prices for all relevant tokens
   const fetchCurrentPrices = async (tokenIds) => {
     try {
-      const response = await axios.get(
-        `${COINGECKO_API_BASE}/simple/price`,
-        {
-          params: {
-            ids: tokenIds.join(','),
-            vs_currencies: 'usd',
-          }
-        }
-      );
+      const response = await axios.get(`${COINGECKO_API_BASE}/simple/price`, {
+        params: {
+          ids: tokenIds.join(","),
+          vs_currencies: "usd",
+        },
+      });
       return response.data;
     } catch (error) {
       console.error("Error fetching current prices:", error);
@@ -153,13 +206,15 @@ const TaxCalculator = () => {
         let longTermGains = 0;
         let longTermLosses = 0;
         let totalFees = 0;
-        
+
         // Holdings tracker for FIFO/LIFO
         const holdings = {};
         const transactions = [];
 
         // Process transactions chronologically
-        const sortedTransactions = [...transactionData].sort((a, b) => a.blockTime - b.blockTime);
+        const sortedTransactions = [...transactionData].sort(
+          (a, b) => a.blockTime - b.blockTime
+        );
 
         // Collect all price requests first
         const priceRequests = [];
@@ -170,7 +225,7 @@ const TaxCalculator = () => {
 
           const timestamp = tx.blockTime * 1000;
           const date = new Date(timestamp);
-          
+
           if (date.getFullYear().toString() !== selectedYear) continue;
 
           const fee = tx.meta.fee / 1e9;
@@ -185,15 +240,19 @@ const TaxCalculator = () => {
             const tokenInfo = getTokenInfo(pre.mint);
             if (!tokenInfo || !tokenInfo.coingeckoId) continue;
 
-            const preAmount = Number(pre.uiTokenAmount.amount) / Math.pow(10, tokenInfo.decimals);
-            const postAmount = Number(post.uiTokenAmount.amount) / Math.pow(10, tokenInfo.decimals);
+            const preAmount =
+              Number(pre.uiTokenAmount.amount) /
+              Math.pow(10, tokenInfo.decimals);
+            const postAmount =
+              Number(post.uiTokenAmount.amount) /
+              Math.pow(10, tokenInfo.decimals);
             const difference = postAmount - preAmount;
 
             if (difference === 0) continue;
 
             priceRequests.push({
               coingeckoId: tokenInfo.coingeckoId,
-              timestamp: timestamp
+              timestamp: timestamp,
             });
 
             relevantTransactions.push({
@@ -202,7 +261,7 @@ const TaxCalculator = () => {
               difference,
               timestamp,
               pre,
-              post
+              post,
             });
           }
         }
@@ -212,7 +271,13 @@ const TaxCalculator = () => {
         let priceIndex = 0;
 
         // Process transactions with cached prices
-        for (const { tx, tokenInfo, difference, timestamp, pre } of relevantTransactions) {
+        for (const {
+          tx,
+          tokenInfo,
+          difference,
+          timestamp,
+          pre,
+        } of relevantTransactions) {
           const price = prices[priceIndex++];
           if (!price) continue;
 
@@ -229,15 +294,24 @@ const TaxCalculator = () => {
             const saleAmount = Math.abs(difference);
             let remainingAmount = saleAmount;
             let totalCostBasis = 0;
-            
-            const lots = taxMethod === 'FIFO' 
-              ? holdings[pre.mint] 
-              : [...holdings[pre.mint]].reverse();
+
+            // Skip if no holdings exist for this token
+            if (!holdings[pre.mint] || holdings[pre.mint].length === 0) {
+              console.log(
+                `No holdings found for token ${pre.mint}, skipping sale`
+              );
+              continue;
+            }
+
+            const lots =
+              taxMethod === "FIFO"
+                ? holdings[pre.mint]
+                : [...holdings[pre.mint]].reverse();
 
             while (remainingAmount > 0 && lots.length > 0) {
               const lot = lots[0];
               const amountFromLot = Math.min(remainingAmount, lot.amount);
-              
+
               const gainLoss = (price - lot.price) * amountFromLot;
               const isLongTermHold = isLongTerm(lot.timestamp, timestamp);
 
@@ -271,7 +345,7 @@ const TaxCalculator = () => {
         // Calculate tax summary
         const netShortTerm = shortTermGains - shortTermLosses;
         const netLongTerm = longTermGains - longTermLosses;
-        
+
         // Estimate taxes (using simplified rates)
         const estimatedShortTermTax = Math.max(0, netShortTerm * 0.35); // 35% rate
         const estimatedLongTermTax = Math.max(0, netLongTerm * 0.15); // 15% rate
@@ -290,7 +364,6 @@ const TaxCalculator = () => {
           },
           transactions: transactions.sort((a, b) => b.timestamp - a.timestamp),
         });
-
       } catch (error) {
         console.error("Error calculating taxes:", error);
         setError("Failed to calculate taxes. Please try again.");
@@ -309,9 +382,9 @@ const TaxCalculator = () => {
 
   // Helper function to format currency
   const formatCurrency = (amount, decimals = 2) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     }).format(amount);
@@ -334,9 +407,11 @@ const TaxCalculator = () => {
       transactions: taxData.transactions,
     };
 
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(report, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `crypto_tax_report_${selectedYear}.json`;
     document.body.appendChild(a);
@@ -409,7 +484,9 @@ const TaxCalculator = () => {
                 </div>
                 <div className="flex justify-between font-semibold">
                   <span>Est. Tax:</span>
-                  <span>{formatCurrency(taxData.summary.estimatedShortTermTax)}</span>
+                  <span>
+                    {formatCurrency(taxData.summary.estimatedShortTermTax)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -431,7 +508,9 @@ const TaxCalculator = () => {
                 </div>
                 <div className="flex justify-between font-semibold">
                   <span>Est. Tax:</span>
-                  <span>{formatCurrency(taxData.summary.estimatedLongTermTax)}</span>
+                  <span>
+                    {formatCurrency(taxData.summary.estimatedLongTermTax)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -468,7 +547,11 @@ const TaxCalculator = () => {
                             : "bg-red-100 text-red-600"
                         }`}
                       >
-                        {tx.type === "BUY" ? <TrendUp size={20} /> : <TrendDown size={20} />}
+                        {tx.type === "BUY" ? (
+                          <TrendUp size={20} />
+                        ) : (
+                          <TrendDown size={20} />
+                        )}
                       </div>
                       <div>
                         <p className="font-medium">

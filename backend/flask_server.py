@@ -70,6 +70,7 @@ def get_transactions():
         return jsonify({"error": "API key not found in environment variables"}), 500
         
     results = get_last_five_transactions(address, api_key)
+    print(results)
     
     if "error" in results:
         return jsonify(results), 400
@@ -102,11 +103,16 @@ def swap_coin():
     output=swap_coin(input_coin, output_coin, amount)
     return jsonify(output)
 
+import os
+import json
+from flask import jsonify, request
+
 @app.route('/init', methods=['POST'])
 def save_wallet_settings():
     try:
         data = request.get_json()
-   
+        
+        # Validate required fields
         required_fields = [
             'public_address', 
             'transaction_limit', 
@@ -120,16 +126,29 @@ def save_wallet_settings():
                 return jsonify({
                     "error": f"Missing required field: {field}"
                 }), 400
-     
+
+        # Validate public address format
+        if not data['public_address'] or not isinstance(data['public_address'], str):
+            return jsonify({
+                "error": "Invalid public address format"
+            }), 400
+        
+        # Create settings directory if it doesn't exist
+        settings_dir = 'files'
+        os.makedirs(settings_dir, exist_ok=True)
+        
+        # Sanitize and validate the data
         settings = {
             "public_address": data['public_address'],
             "transaction_limit": float(data['transaction_limit']),
             "daily_transaction_limit": float(data['daily_transaction_limit']),
-            "whitelisted_coins": data['whitelisted_coins'],
-            "whitelisted_addresses": data['whitelisted_addresses']
+            "whitelisted_coins": list(data['whitelisted_coins']),
+            "whitelisted_addresses": list(data['whitelisted_addresses'])
         }
         
-        with open(f'files/settings_{data["public_address"]}.json', 'w') as f:
+        # Create the settings file
+        file_path = os.path.join(settings_dir, f'settings_{data["public_address"]}.json')
+        with open(file_path, 'w') as f:
             json.dump(settings, f, indent=2)
             
         return jsonify({
@@ -142,9 +161,12 @@ def save_wallet_settings():
             "error": "Invalid number format for limits"
         }), 400
     except Exception as e:
+        # Log the error for debugging (you should set up proper logging)
+        print(f"Error saving settings: {str(e)}")
         return jsonify({
-            "error": f"An error occurred: {str(e)}"
+            "error": "An error occurred while saving settings"
         }), 500
+     
 
 @app.route('/')
 def home():

@@ -1,98 +1,58 @@
 import React, { useState, useEffect } from "react";
-import { X, Plus, Minus, Warning, Spinner } from "@phosphor-icons/react";
 import { useNavigate } from "react-router-dom";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import {
+  Warning,
+  CheckCircle,
+  Plus,
+  X,
+  Coins,
+  AddressBook,
+  Shield,
+} from "@phosphor-icons/react";
 
-const SmartContractSetup = ({ walletAddress, isOpen, onClose }) => {
+const SmartContractSetup = () => {
   const navigate = useNavigate();
+  const { publicKey, connected } = useWallet();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+
+  // Form state
   const [formData, setFormData] = useState({
-    maxCurrency: "",
-    maxTransactionsPerDay: "",
-    waitlistedAddresses: [],
-    whitelistedCurrencies: [],
+    transaction_limit: "",
+    daily_transaction_limit: "",
+    whitelisted_coins: ["SOL", "USDC"], // Default coins
+    whitelisted_addresses: [],
   });
 
-  const [errors, setErrors] = useState({});
+  // State for new inputs
+  const [newCoin, setNewCoin] = useState("");
   const [newAddress, setNewAddress] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [apiError, setApiError] = useState("");
 
-  const availableCurrencies = [
-    { value: "SOL", label: "Solana (SOL)" },
-    { value: "USDC", label: "USD Coin (USDC)" },
-    { value: "USDT", label: "Tether (USDT)" },
-    { value: "ETH", label: "Ethereum (ETH)" },
-    { value: "BTC", label: "Bitcoin (BTC)" },
-  ];
-
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.maxCurrency) {
-      newErrors.maxCurrency = "Maximum currency is required";
-    } else if (isNaN(formData.maxCurrency) || formData.maxCurrency <= 0) {
-      newErrors.maxCurrency = "Please enter a valid positive number";
+  const handleAddCoin = () => {
+    if (newCoin && !formData.whitelisted_coins.includes(newCoin)) {
+      setFormData({
+        ...formData,
+        whitelisted_coins: [...formData.whitelisted_coins, newCoin],
+      });
+      setNewCoin("");
     }
-
-    if (
-      formData.maxTransactionsPerDay &&
-      (isNaN(formData.maxTransactionsPerDay) ||
-        formData.maxTransactionsPerDay <= 0)
-    ) {
-      newErrors.maxTransactionsPerDay = "Please enter a valid positive number";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (validateForm()) {
-      try {
-        setIsLoading(true);
-        setApiError(""); // Clear any previous errors
-
-        const response = await fetch(
-          "http://127.0.0.1:5000/api/smart-contract",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              walletAddress,
-              ...formData,
-            }),
-          }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || "Failed to setup smart contract");
-        }
-
-        if (data.success) {
-          // Navigate to dashboard after successful setup
-          navigate("/dashboard");
-        } else {
-          throw new Error(data.message || "Failed to setup smart contract");
-        }
-      } catch (error) {
-        console.error("Error setting up smart contract:", error);
-        setApiError(
-          error.message || "Failed to setup smart contract. Please try again."
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    }
+  const handleRemoveCoin = (coin) => {
+    setFormData({
+      ...formData,
+      whitelisted_coins: formData.whitelisted_coins.filter((c) => c !== coin),
+    });
   };
 
   const handleAddAddress = () => {
-    if (newAddress && !formData.waitlistedAddresses.includes(newAddress)) {
+    if (newAddress && !formData.whitelisted_addresses.includes(newAddress)) {
       setFormData({
         ...formData,
-        waitlistedAddresses: [...formData.waitlistedAddresses, newAddress],
+        whitelisted_addresses: [...formData.whitelisted_addresses, newAddress],
       });
       setNewAddress("");
     }
@@ -101,210 +61,252 @@ const SmartContractSetup = ({ walletAddress, isOpen, onClose }) => {
   const handleRemoveAddress = (address) => {
     setFormData({
       ...formData,
-      waitlistedAddresses: formData.waitlistedAddresses.filter(
-        (addr) => addr !== address
+      whitelisted_addresses: formData.whitelisted_addresses.filter(
+        (a) => a !== address
       ),
     });
   };
 
-  const handleCurrencyToggle = (currency) => {
-    const updatedCurrencies = formData.whitelistedCurrencies.includes(currency)
-      ? formData.whitelistedCurrencies.filter((c) => c !== currency)
-      : [...formData.whitelistedCurrencies, currency];
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!publicKey) {
+      setError("Please connect your wallet first");
+      return;
+    }
 
-    setFormData({
-      ...formData,
-      whitelistedCurrencies: updatedCurrencies,
-    });
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      setSuccess(false);
+
+      const response = await fetch("http://127.0.0.1:5000/init", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          public_address: publicKey.toString(),
+          ...formData,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setSuccess(true);
+      // Wait for 1 second to show success message before redirecting
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1000);
+    } catch (error) {
+      console.error("Error saving wallet settings:", error);
+      setError(error.message || "Failed to save wallet settings");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0" style={{ zIndex: 99999 }}>
-      <div
-        className="fixed inset-0 bg-black/30 backdrop-blur-sm"
-        aria-hidden="true"
-      />
-      <div className="fixed inset-0 flex items-start justify-center p-4 overflow-y-auto">
-        <div className="relative w-full max-w-2xl mt-16 bg-white dark:bg-gray-800 rounded-xl shadow-xl">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Smart Contract Setup
-              </h2>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <X size={20} className="text-gray-500" />
-              </button>
+    <div className="min-h-screen bg-gray-50">
+      {/* Top Navigation with Wallet Button */}
+      <nav className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold text-purple-600">VoiceSol</h1>
             </div>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Configure your smart contract parameters to set up transaction
-              limits and security settings.
+            <div className="flex items-center">
+              <WalletMultiButton />
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        {!connected ? (
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Connect Your Wallet
+            </h2>
+            <p className="text-gray-600 mb-8">
+              Please connect your Phantom wallet using the button in the top
+              right to continue.
             </p>
           </div>
+        ) : (
+          <div className="bg-white rounded-xl p-6 shadow-xl border border-gray-200">
+            <h2 className="text-2xl font-bold mb-6">Smart Contract Setup</h2>
 
-          <div className="p-6 max-h-[calc(100vh-16rem)] overflow-y-auto">
+            {/* Connected Wallet Display */}
+            <div className="mb-8 p-4 bg-purple-50 rounded-lg">
+              <p className="text-sm text-purple-700">Connected Wallet</p>
+              <p className="mt-1 font-mono text-sm">{publicKey.toString()}</p>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Connected Wallet Display */}
-              <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                <p className="text-sm text-purple-700 dark:text-purple-300">
-                  Connected Wallet
-                </p>
-                <p className="mt-1 font-mono text-sm">{walletAddress}</p>
-              </div>
-
-              {/* Maximum Currency */}
+              {/* Transaction Limits */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Maximum Currency (SOL) *
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Transaction Limit (SOL)
                 </label>
                 <input
                   type="number"
-                  value={formData.maxCurrency}
-                  onChange={(e) =>
-                    setFormData({ ...formData, maxCurrency: e.target.value })
-                  }
-                  className={`w-full px-4 py-2 border ${
-                    errors.maxCurrency
-                      ? "border-red-300 focus:ring-red-500"
-                      : "border-gray-200 focus:ring-purple-500"
-                  } rounded-lg focus:outline-none focus:ring-2 transition-colors`}
-                  placeholder="Enter maximum currency amount"
-                />
-                {errors.maxCurrency && (
-                  <p className="mt-1 text-sm text-red-500 flex items-center">
-                    <Warning size={16} className="mr-1" />
-                    {errors.maxCurrency}
-                  </p>
-                )}
-              </div>
-
-              {/* Maximum Transactions per Day */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Maximum Transactions per Day
-                </label>
-                <input
-                  type="number"
-                  value={formData.maxTransactionsPerDay}
+                  value={formData.transaction_limit}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      maxTransactionsPerDay: e.target.value,
+                      transaction_limit: e.target.value,
                     })
                   }
-                  className={`w-full px-4 py-2 border ${
-                    errors.maxTransactionsPerDay
-                      ? "border-red-300 focus:ring-red-500"
-                      : "border-gray-200 focus:ring-purple-500"
-                  } rounded-lg focus:outline-none focus:ring-2 transition-colors`}
-                  placeholder="Enter maximum daily transactions"
+                  placeholder="Enter maximum transaction amount"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  required
                 />
-                {errors.maxTransactionsPerDay && (
-                  <p className="mt-1 text-sm text-red-500 flex items-center">
-                    <Warning size={16} className="mr-1" />
-                    {errors.maxTransactionsPerDay}
-                  </p>
-                )}
               </div>
 
-              {/* Waitlisted Addresses */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Waitlisted Addresses
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Daily Transaction Limit (SOL)
+                </label>
+                <input
+                  type="number"
+                  value={formData.daily_transaction_limit}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      daily_transaction_limit: e.target.value,
+                    })
+                  }
+                  placeholder="Enter daily transaction limit"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  required
+                />
+              </div>
+
+              {/* Whitelisted Coins */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Whitelisted Coins
                 </label>
                 <div className="flex space-x-2 mb-2">
                   <input
                     type="text"
-                    value={newAddress}
-                    onChange={(e) => setNewAddress(e.target.value)}
-                    className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
-                    placeholder="Enter wallet address"
+                    value={newCoin}
+                    onChange={(e) => setNewCoin(e.target.value)}
+                    placeholder="Enter coin symbol"
+                    className="flex-1 px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                   <button
                     type="button"
-                    onClick={handleAddAddress}
-                    className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors flex items-center"
+                    onClick={handleAddCoin}
+                    className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600"
                   >
-                    <Plus size={20} className="mr-1" />
-                    Add
+                    <Plus size={20} />
                   </button>
                 </div>
-                <div className="space-y-2">
-                  {formData.waitlistedAddresses.map((address) => (
+                <div className="flex flex-wrap gap-2">
+                  {formData.whitelisted_coins.map((coin) => (
                     <div
-                      key={address}
-                      className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                      key={coin}
+                      className="flex items-center space-x-1 px-3 py-1 bg-purple-100 text-purple-600 rounded-full"
                     >
-                      <code className="text-sm">{address}</code>
+                      <Coins size={16} />
+                      <span>{coin}</span>
                       <button
                         type="button"
-                        onClick={() => handleRemoveAddress(address)}
-                        className="p-1 text-gray-500 hover:text-red-500 transition-colors"
+                        onClick={() => handleRemoveCoin(coin)}
+                        className="hover:text-purple-800"
                       >
-                        <Minus size={16} />
+                        <X size={16} />
                       </button>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Whitelisted Currencies */}
+              {/* Whitelisted Addresses */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Whitelisted Currencies
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Whitelisted Addresses
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {availableCurrencies.map((currency) => (
-                    <button
-                      key={currency.value}
-                      type="button"
-                      onClick={() => handleCurrencyToggle(currency.value)}
-                      className={`p-3 rounded-lg border ${
-                        formData.whitelistedCurrencies.includes(currency.value)
-                          ? "border-purple-500 bg-purple-50 text-purple-700"
-                          : "border-gray-200 hover:border-purple-500 hover:bg-purple-50"
-                      } transition-all duration-200`}
+                <div className="flex space-x-2 mb-2">
+                  <input
+                    type="text"
+                    value={newAddress}
+                    onChange={(e) => setNewAddress(e.target.value)}
+                    placeholder="Enter Solana address"
+                    className="flex-1 px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddAddress}
+                    className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600"
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {formData.whitelisted_addresses.map((address) => (
+                    <div
+                      key={address}
+                      className="flex items-center space-x-1 px-3 py-1 bg-purple-100 text-purple-600 rounded-full"
                     >
-                      <p className="text-sm font-medium">{currency.label}</p>
-                    </button>
+                      <AddressBook size={16} />
+                      <span>
+                        {address.slice(0, 4)}...{address.slice(-4)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAddress(address)}
+                        className="hover:text-purple-800"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>
 
-              {/* API Error Display */}
-              {apiError && (
-                <div className="p-4 bg-red-50 rounded-lg">
-                  <p className="text-sm text-red-600 flex items-center">
-                    <Warning size={16} className="mr-1" />
-                    {apiError}
-                  </p>
+              {/* Error and Success Messages */}
+              {error && (
+                <div className="p-3 bg-red-50 text-red-700 rounded-lg flex items-center">
+                  <Warning size={20} className="mr-2 flex-shrink-0" />
+                  <p className="text-sm">{error}</p>
+                </div>
+              )}
+
+              {success && (
+                <div className="p-3 bg-green-50 text-green-700 rounded-lg flex items-center">
+                  <CheckCircle size={20} className="mr-2 flex-shrink-0" />
+                  <p className="text-sm">Wallet settings saved successfully!</p>
                 </div>
               )}
 
               {/* Submit Button */}
-              <div className="pt-4">
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? (
-                    <>
-                      <Spinner size={20} className="animate-spin" />
-                      <span>Setting up Smart Contract...</span>
-                    </>
-                  ) : (
-                    <span>Configure Smart Contract</span>
-                  )}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Shield size={20} />
+                    <span>Save Smart Contract Settings</span>
+                  </>
+                )}
+              </button>
             </form>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

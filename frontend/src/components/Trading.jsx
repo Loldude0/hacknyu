@@ -9,10 +9,8 @@ import {
   Gear,
   Wallet,
   TrendUp,
-  ChartLine,
   ArrowsVertical,
   ArrowsLeftRight,
-  ChartLineUp,
   Warning,
 } from "@phosphor-icons/react";
 import { currencies } from "../data/currencies";
@@ -94,12 +92,16 @@ const Trading = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [estimatedOutput, setEstimatedOutput] = useState(null);
   const [transactionCost, setTransactionCost] = useState(0.00001); // SOL
+  const [priceChange, setPriceChange] = useState({});
+  const [selectedToken, setSelectedToken] = useState("SOL");
+  const [isSwapping, setIsSwapping] = useState(false);
+  const [swapError, setSwapError] = useState(null);
 
   const tokens = [
-    { symbol: "SOL", name: "Solana", balance: "12.5" },
-    { symbol: "USDC", name: "USD Coin", balance: "1250.00" },
-    { symbol: "BONK", name: "Bonk", balance: "1000000" },
-    { symbol: "JUP", name: "Jupiter", balance: "500" },
+    { symbol: "SOL", name: "Solana", balance: "12.5", color: "#8B5CF6" },
+    { symbol: "USDC", name: "USD Coin", balance: "1250.00", color: "#2563EB" },
+    { symbol: "BONK", name: "Bonk", balance: "1000000", color: "#F59E0B" },
+    { symbol: "JUP", name: "Jupiter", balance: "500", color: "#10B981" },
   ];
 
   const mockPrices = {
@@ -108,6 +110,15 @@ const Trading = () => {
     BONK: 0.00001,
     JUP: 0.85,
   };
+
+  // Generate mock price changes
+  useEffect(() => {
+    const changes = {};
+    tokens.forEach((token) => {
+      changes[token.symbol] = (Math.random() * 10 - 5).toFixed(2);
+    });
+    setPriceChange(changes);
+  }, []);
 
   useEffect(() => {
     if (amount && fromToken && toToken) {
@@ -127,6 +138,48 @@ const Trading = () => {
     return (parseFloat(amount) * mockPrices[fromToken]).toFixed(2);
   };
 
+  const handleTokenSelect = (token) => {
+    setSelectedToken(token);
+    setFromToken(token);
+  };
+
+  const getSelectedTokenColor = () => {
+    return tokens.find((t) => t.symbol === selectedToken)?.color || "#8B5CF6";
+  };
+
+  const handleSwapSubmit = async () => {
+    try {
+      setIsSwapping(true);
+      setSwapError(null);
+
+      const response = await fetch(
+        `http://127.0.0.1:5000/swap-coin?input_coin=${fromToken}&output_coin=${toToken}&amount=${amount}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Reset form and show success
+      setAmount("");
+      setEstimatedOutput(null);
+      // You might want to refresh balances here
+    } catch (error) {
+      console.error("Error swapping tokens:", error);
+      setSwapError(error.message || "Failed to swap tokens. Please try again.");
+    } finally {
+      setIsSwapping(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -140,7 +193,7 @@ const Trading = () => {
                   <Lightning size={20} className="text-yellow-500" />
                 </button>
                 <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-                  <ChartLineUp size={20} className="text-blue-500" />
+                  <ArrowsVertical size={20} className="text-blue-500" />
                 </button>
               </div>
             </div>
@@ -249,12 +302,19 @@ const Trading = () => {
               </div>
             </div>
 
+            {swapError && (
+              <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-lg flex items-center">
+                <Warning size={20} className="mr-2 flex-shrink-0" />
+                <p className="text-sm">{swapError}</p>
+              </div>
+            )}
+
             <button
-              onClick={() => setIsLoading(true)}
-              disabled={!amount || isLoading}
+              onClick={handleSwapSubmit}
+              disabled={!amount || isSwapping || !fromToken || !toToken}
               className="w-full mt-6 py-4 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? (
+              {isSwapping ? (
                 <div className="flex items-center justify-center space-x-2">
                   <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin" />
                   <span>Swapping...</span>
@@ -268,11 +328,99 @@ const Trading = () => {
 
         {/* Right Column - Market Info */}
         <div className="space-y-6">
-          {/* Price Chart Placeholder */}
+          {/* Quick Swap Pairs */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold mb-4">Price Chart</h3>
-            <div className="aspect-video bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-              <ChartLineUp size={48} className="text-gray-400" />
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">Quick Swap Pairs</h3>
+              <div className="flex items-center space-x-2">
+                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                  <Lightning size={20} className="text-yellow-500" />
+                </button>
+                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                  <ArrowsVertical size={20} className="text-blue-500" />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {[
+                {
+                  from: "SOL",
+                  to: "USDC",
+                  rate: "95.42",
+                  volume: "12.5M",
+                  change: "+2.5",
+                },
+                {
+                  from: "BONK",
+                  to: "SOL",
+                  rate: "0.0000123",
+                  volume: "8.2M",
+                  change: "-1.2",
+                },
+                {
+                  from: "JUP",
+                  to: "USDC",
+                  rate: "0.85",
+                  volume: "5.1M",
+                  change: "+4.8",
+                },
+                {
+                  from: "SOL",
+                  to: "BONK",
+                  rate: "81235.67",
+                  volume: "3.9M",
+                  change: "-0.7",
+                },
+                {
+                  from: "USDC",
+                  to: "JUP",
+                  rate: "1.18",
+                  volume: "2.7M",
+                  change: "+3.2",
+                },
+              ].map((pair, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                  onClick={() => {
+                    setFromToken(pair.from);
+                    setToToken(pair.to);
+                  }}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center">
+                      <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-600 dark:text-purple-300 font-medium">
+                        {pair.from[0]}
+                      </div>
+                      <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-300 font-medium -ml-2">
+                        {pair.to[0]}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium">
+                        {pair.from}/{pair.to}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        24h Vol: ${pair.volume}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-medium">{pair.rate}</div>
+                    <div
+                      className={`text-sm ${
+                        parseFloat(pair.change) > 0
+                          ? "text-green-500"
+                          : "text-red-500"
+                      }`}
+                    >
+                      {parseFloat(pair.change) > 0 ? "+" : ""}
+                      {pair.change}%
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -280,19 +428,47 @@ const Trading = () => {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
             <h3 className="text-lg font-semibold mb-4">Market Stats</h3>
             <div className="space-y-4">
-              {Object.entries(mockPrices).map(([token, price]) => (
-                <div key={token} className="flex items-center justify-between">
+              {tokens.map((token) => (
+                <button
+                  key={token.symbol}
+                  onClick={() => handleTokenSelect(token.symbol)}
+                  className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
+                    selectedToken === token.symbol
+                      ? "bg-gray-50 dark:bg-gray-700"
+                      : "hover:bg-gray-50 dark:hover:bg-gray-700"
+                  }`}
+                >
                   <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                      {token[0]}
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center"
+                      style={{
+                        backgroundColor: `${token.color}20`,
+                        color: token.color,
+                      }}
+                    >
+                      {token.symbol[0]}
                     </div>
-                    <span>{token}</span>
+                    <div className="text-left">
+                      <span className="font-medium">{token.symbol}</span>
+                      <p className="text-xs text-gray-500">{token.name}</p>
+                    </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-medium">${price.toFixed(2)}</div>
-                    <div className="text-sm text-green-500">+2.5%</div>
+                    <div className="font-medium">
+                      ${mockPrices[token.symbol].toFixed(2)}
+                    </div>
+                    <div
+                      className={`text-sm ${
+                        priceChange[token.symbol] > 0
+                          ? "text-green-500"
+                          : "text-red-500"
+                      }`}
+                    >
+                      {priceChange[token.symbol] > 0 ? "+" : ""}
+                      {priceChange[token.symbol]}%
+                    </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>

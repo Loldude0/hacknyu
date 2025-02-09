@@ -1,3 +1,6 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from transactions import getBalance, execute_jupiter_swap, send_sol
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
@@ -6,7 +9,7 @@ import json
 
  
 # Example usage:
-with open("../../../keys.json") as f:
+with open("../../keys.json") as f:
     keys = json.load(f)
 # keypair= Keypair.from_base58_string(keys["users"]["John"]["keypair"])
 # pubkey= Pubkey.from_string(keys["users"]["John"]["public"])

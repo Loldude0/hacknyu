@@ -6,9 +6,12 @@ import {
   Copy,
   AddressBook,
   Plus,
+  Warning,
+  Clock,
+  CheckCircle,
+  CurrencyCircleDollar,
 } from "@phosphor-icons/react";
 import TransactionCard from "./TransactionCard";
-import { fetchRecentTransactions } from "../utils/transactionService";
 
 // Sample data (you might want to move this to a separate data file)
 const sampleContacts = [
@@ -41,7 +44,9 @@ const Payments = () => {
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const solanaPublicKey = "HEmpRb9etVX6oivUmGvhxYzc171mBYKgQ79wTeqvRpa7"; // You might want to get this from a context or props
+  const solanaPublicKey = "HEmpRb9etVX6oivUmGvhxYzc171mBYKgQ79wTeqvRpa7";
+  const [isSending, setIsSending] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const myWalletAddress = "7Hnm...1Rty";
 
@@ -52,8 +57,28 @@ const Payments = () => {
   const loadTransactions = async () => {
     try {
       setIsLoading(true);
-      const data = await fetchRecentTransactions(solanaPublicKey);
-      setTransactions(data);
+      const response = await fetch(
+        "http://127.0.0.1:5000/get-recent-transactions"
+      );
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Transform the transactions to match our UI format
+      const formattedTransactions = data.map((tx) => ({
+        id: tx.signature,
+        type: tx.description.toLowerCase().includes("receive")
+          ? "receive"
+          : "send",
+        amount: tx.amount,
+        to: tx.destination || "Unknown",
+        timestamp: tx.timestamp,
+        status: tx.status,
+      }));
+
+      setTransactions(formattedTransactions);
       setError(null);
     } catch (err) {
       setError("Failed to load transactions");
@@ -63,9 +88,37 @@ const Payments = () => {
     }
   };
 
-  const handleSend = () => {
-    // This will be implemented with actual blockchain interaction later
-    console.log("Sending payment...");
+  const handleSendSol = async () => {
+    try {
+      setIsSending(true);
+      setError(null);
+      setSuccess(false);
+
+      const response = await fetch(
+        `http://127.0.0.1:5000/send-sol?reciever=${recipientAddress}&amount=${amount}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setSuccess(true);
+      setAmount("");
+      setRecipientAddress("");
+    } catch (error) {
+      console.error("Error sending SOL:", error);
+      setError(error.message || "Failed to send SOL. Please try again.");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   if (isLoading) {
@@ -120,13 +173,18 @@ const Payments = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Amount (SOL)
               </label>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
+              <div className="relative">
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+                  SOL
+                </span>
+              </div>
             </div>
 
             {/* Recipient Address */}
@@ -207,13 +265,54 @@ const Payments = () => {
               />
             </div>
 
+            {/* Transaction Details */}
+            <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Network Fee</span>
+                <span className="font-medium">0.000005 SOL</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Total Amount</span>
+                <span className="font-medium">
+                  {amount ? (Number(amount) + 0.000005).toFixed(6) : "0.000005"}{" "}
+                  SOL
+                </span>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="p-3 bg-red-50 text-red-700 rounded-lg flex items-center">
+                <Warning size={20} className="mr-2 flex-shrink-0" />
+                <p className="text-sm">{error}</p>
+              </div>
+            )}
+
+            {/* Success Message */}
+            {success && (
+              <div className="p-3 bg-green-50 text-green-700 rounded-lg flex items-center">
+                <CheckCircle size={20} className="mr-2 flex-shrink-0" />
+                <p className="text-sm">Successfully sent SOL!</p>
+              </div>
+            )}
+
             {/* Send Button */}
             <button
-              onClick={handleSend}
-              disabled={!amount || !recipientAddress}
-              className="w-full py-4 bg-purple-600 text-white rounded-lg text-lg font-medium hover:bg-purple-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleSendSol}
+              disabled={!amount || !recipientAddress || isSending}
+              className="w-full py-4 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Send Payment
+              {isSending ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <Clock size={20} className="animate-spin" />
+                  <span>Sending...</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center space-x-2">
+                  <span>Send SOL</span>
+                  <ArrowRight size={20} />
+                </div>
+              )}
             </button>
           </div>
         ) : (

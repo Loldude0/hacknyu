@@ -1,0 +1,10 @@
+{
+  "public_address": "D7kf3XmJMoo6f6gnBYLaknzXaRJLzHMhXawgHSPaDPxS",
+  "transaction_limit": 432.0,
+  "daily_transaction_limit": 423.0,
+  "whitelisted_coins": [
+    "SOL",
+    "USDC"
+  ],
+  "whitelisted_addresses": []
+}

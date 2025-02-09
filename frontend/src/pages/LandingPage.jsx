@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { useWallet } from "@solana/wallet-adapter-react";
 import {
   Microphone,
   ChartLineUp,
@@ -12,18 +14,16 @@ import {
   LinkedinLogo,
   GithubLogo,
 } from "@phosphor-icons/react";
-import WalletConnect from "../components/WalletConnect";
 
 const NavBar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isWalletConnected, setIsWalletConnected] = useState(false);
+  const { connected } = useWallet();
+  const navigate = useNavigate();
 
-  const handleWalletAddress = (address) => {
-    console.log("Wallet connected:", address);
-    setIsWalletConnected(true);
-    // You can add additional logic here, like redirecting to dashboard
-    // For example:
-    // window.location.href = '/dashboard';
+  const handleGetStarted = () => {
+    if (connected) {
+      navigate("/setup");
+    }
   };
 
   return (
@@ -51,9 +51,14 @@ const NavBar = () => {
           </div>
         </div>
 
-        {/* Wallet Connect Button */}
-        <div className="hidden md:block">
-          <WalletConnect onAddressReceived={handleWalletAddress} />
+        {/* Get Started and Wallet Buttons */}
+        <div className="hidden md:flex items-center space-x-4">
+          <WalletMultiButton />
+          {connected && (
+            <button onClick={handleGetStarted} className="nav-button">
+              Get Started
+            </button>
+          )}
         </div>
 
         {/* Mobile menu button */}
@@ -85,7 +90,17 @@ const NavBar = () => {
             <button className="nav-link text-sm md:text-base font-medium tracking-wide text-center">
               FAQ
             </button>
-            <WalletConnect onAddressReceived={handleWalletAddress} />
+            <div className="flex flex-col items-center space-y-4">
+              <WalletMultiButton />
+              {connected && (
+                <button
+                  onClick={handleGetStarted}
+                  className="nav-button w-full"
+                >
+                  Get Started
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

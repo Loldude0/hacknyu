@@ -5,6 +5,8 @@ import {
   TrendDown,
   Clock,
   ArrowRight,
+  ArrowsLeftRight,
+  Question,
 } from "@phosphor-icons/react";
 import { Connection, PublicKey } from "@solana/web3.js";
 import {
@@ -16,15 +18,88 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { fetchRecentTransactions } from "../utils/transactionService";
 
 const SOLANA_RPC_URL =
   "https://cold-methodical-valley.solana-mainnet.quiknode.pro/5f68d0b807c87c2f09e2990ff988acb552c709f6";
 const solanaConnection = new Connection(SOLANA_RPC_URL);
 const solanaPublicKey = "FUCK3XiQyAPrtMKxU6Mk7bht2psruHTcBb2zWCynjjLz";
 
+const TransactionIcon = ({ type }) => {
+  switch (type) {
+    case "TRANSFER":
+      return <ArrowsLeftRight size={20} />;
+    case "SWAP":
+      return <TrendUp size={20} />;
+    default:
+      return <Question size={20} />;
+  }
+};
+
+const extractAmounts = (description, type) => {
+  if (!description) return null;
+
+  if (type === "SWAP") {
+    const matches = description.match(
+      /swapped ([\d.]+) (.+?) for ([\d.]+) (.+)$/
+    );
+    if (matches) {
+      return {
+        from: {
+          amount: parseFloat(matches[1]),
+          currency: matches[2],
+        },
+        to: {
+          amount: parseFloat(matches[3]),
+          currency: matches[4],
+        },
+      };
+    }
+  } else if (type === "TRANSFER") {
+    const matches = description.match(/transferred a total ([\d.]+) (.+?) to/);
+    if (matches) {
+      return {
+        amount: parseFloat(matches[1]),
+        currency: matches[2],
+      };
+    }
+  }
+  return null;
+};
+const TransactionAmount = ({ description, type }) => {
+  const amounts = extractAmounts(description, type);
+
+  if (!amounts) return null;
+
+  if (type === "SWAP") {
+    return (
+      <div className="text-right">
+        <p className="font-medium text-red-500">
+          -{amounts.from.amount} {amounts.from.currency}
+        </p>
+        <p className="font-medium text-green-500">
+          +{amounts.to.amount} {amounts.to.currency}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <p className="font-medium">
+      {amounts.amount} {amounts.currency}
+    </p>
+  );
+};
+const formatTimestamp = (timestamp) => {
+  const date = new Date(timestamp);
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 const Portfolio = ({ setActiveTab }) => {
-  // State variables
   const [solBalance, setSolBalance] = useState(0);
   const [solPrice, setSolPrice] = useState(0);
   const [transactions, setTransactions] = useState([]);
@@ -76,11 +151,17 @@ const Portfolio = ({ setActiveTab }) => {
 
   const loadRecentTransactions = async () => {
     try {
-      const transactions = await fetchRecentTransactions(solanaPublicKey);
-      setTransactions(transactions);
+      const response = await fetch(
+        "http://127.0.0.1:5000/get-recent-transactions"
+      );
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      setTransactions(data);
     } catch (error) {
       console.error("Error loading transactions:", error);
-      setTransactions([]); // Set empty array on error
+      setTransactions([]);
     }
   };
 
@@ -102,7 +183,6 @@ const Portfolio = ({ setActiveTab }) => {
       setPriceData(formattedData);
     } catch (error) {
       console.error("Error fetching price data:", error);
-      // Fallback to generated data if API fails
       setPriceData(generateSamplePriceData());
     } finally {
       setIsLoading(false);
@@ -133,7 +213,7 @@ const Portfolio = ({ setActiveTab }) => {
   const formatNumber = (num) => {
     return new Intl.NumberFormat("en-US", {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      maximumFractionDigits: 6,
     }).format(num);
   };
 
@@ -161,7 +241,7 @@ const Portfolio = ({ setActiveTab }) => {
         </div>
         <button className="flex items-center space-x-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
           <Wallet size={20} />
-          <span>Connect Wallet</span>
+          <span>Wallet</span>
         </button>
       </div>
 
@@ -289,55 +369,60 @@ const Portfolio = ({ setActiveTab }) => {
       </div>
 
       {/* Recent Transactions */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Recent Transactions</h3>
           <button
-            onClick={() => setActiveTab("history")}
-            className="text-sm text-purple-500 hover:text-purple-600 font-medium flex items-center space-x-1"
+            onClick={() => setActiveTab("transactions")}
+            className="text-purple-500 hover:text-purple-600 flex items-center"
           >
-            <span>View All</span>
-            <ArrowRight size={16} />
+            View All
+            <ArrowRight size={16} className="ml-1" />
           </button>
         </div>
-        <div className="divide-y divide-gray-200 dark:divide-gray-700">
-          {transactions.map((tx) => (
-            <div
-              key={tx.id}
-              className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-            >
-              <div className="flex items-center justify-between">
+
+        {transactions.length > 0 ? (
+          <div className="space-y-4">
+            {transactions.slice(0, 5).map((tx) => (
+              <div
+                key={tx.signature}
+                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg"
+              >
                 <div className="flex items-center space-x-3">
-                  <div
-                    className={`p-2 rounded-lg ${
-                      tx.type === "receive"
-                        ? "bg-green-100 text-green-600"
-                        : "bg-red-100 text-red-600"
-                    }`}
-                  >
-                    {tx.type === "receive" ? (
-                      <TrendUp size={20} />
-                    ) : (
-                      <TrendDown size={20} />
-                    )}
+                  <div className="p-2 rounded-full bg-purple-100 text-purple-600">
+                    <TransactionIcon type={tx.type} />
                   </div>
                   <div>
-                    <p className="font-medium">
-                      {tx.type === "receive" ? "Received" : "Sent"} {tx.amount}
-                    </p>
+                    <div className="flex items-center space-x-2">
+                      <p className="font-medium">{tx.type}</p>
+                      {tx.source && (
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                          via {tx.source}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-500">
-                      {tx.type === "receive" ? "From" : "To"} {tx.to}
+                      {formatTimestamp(tx.timestamp)}
                     </p>
                   </div>
                 </div>
-                <div className="text-right flex items-center space-x-2">
-                  <Clock size={16} className="text-gray-400" />
-                  <span className="text-sm text-gray-500">{tx.timestamp}</span>
+                <div className="text-right">
+                  <TransactionAmount
+                    description={tx.description}
+                    type={tx.type}
+                  />
+                  <p className="text-xs text-gray-500">
+                    Fee: {formatNumber(tx.fee)} SOL
+                  </p>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            No recent transactions
+          </div>
+        )}
       </div>
     </div>
   );
